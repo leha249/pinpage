@@ -4,27 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MyWall ✦</title>
-<script src="firebase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Syne+Mono&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg:#08090f; --bg2:#0f1220; --bg3:#161b2e;
-  --surface:rgba(15,18,36,0.82); --border:rgba(180,190,255,0.09); --border2:rgba(180,190,255,0.16);
-  --text:#e8eaf6; --text2:#8b92b8; --text3:#4a5080;
-  --accent:#7c6ff7; --accent2:#a78bfa; --accent-bg:rgba(124,111,247,0.12);
-  --danger:#ef4444; --danger-bg:rgba(239,68,68,0.1);
-  --nav-h:54px; --r:12px;
+:root{
+  --bg:#08090f;--bg2:#0f1220;--bg3:#161b2e;
+  --surface:rgba(15,18,36,0.85);--border:rgba(180,190,255,0.09);--border2:rgba(180,190,255,0.16);
+  --text:#e8eaf6;--text2:#8b92b8;--text3:#4a5080;
+  --accent:#7c6ff7;--accent2:#a78bfa;--accent-bg:rgba(124,111,247,0.12);
+  --danger:#ef4444;--danger-bg:rgba(239,68,68,0.1);
+  --nav-h:54px;--r:12px;
   --font:'Syne',system-ui,sans-serif;
   --serif:'Crimson Pro',Georgia,serif;
   --mono:'Syne Mono',monospace;
   color-scheme:dark;
 }
-[data-theme="light"] {
-  --bg:#f0f0f7; --bg2:#e4e4f0; --bg3:#d8d8ec;
-  --surface:rgba(255,255,255,0.85); --border:rgba(80,80,160,0.12); --border2:rgba(80,80,160,0.22);
-  --text:#1a1a3a; --text2:#4a4a7a; --text3:#9090b8;
-  --accent:#5b4fe0; --accent2:#7c6ff7; --accent-bg:rgba(91,79,224,0.1);
+[data-theme="light"]{
+  --bg:#f0f0f7;--bg2:#e4e4f0;--bg3:#d8d8ec;
+  --surface:rgba(255,255,255,0.88);--border:rgba(80,80,160,0.12);--border2:rgba(80,80,160,0.22);
+  --text:#1a1a3a;--text2:#4a4a7a;--text3:#9090b8;
+  --accent:#5b4fe0;--accent2:#7c6ff7;--accent-bg:rgba(91,79,224,0.1);
   color-scheme:light;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -35,29 +34,22 @@ input,textarea{outline:none;transition:border-color .2s,box-shadow .2s}
 input:focus,textarea:focus{border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(124,111,247,.14)}
 button{cursor:pointer;transition:all .18s}
 img{display:block}
-
 @keyframes fadeDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fadeUp  {from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)}}
-@keyframes slideIn {from{opacity:0;transform:translateX(30px)} to{opacity:1;transform:translateX(0)}}
-@keyframes notif   {from{opacity:0;transform:translateX(-50%) scale(.9)}to{opacity:1;transform:translateX(-50%) scale(1)}}
-@keyframes spin    {to{transform:rotate(360deg)}}
-
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes notif{from{opacity:0;transform:translateX(-50%) scale(.9)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+@keyframes spin{to{transform:rotate(360deg)}}
 #app{display:flex;flex-direction:column;height:100vh}
 #nav{height:var(--nav-h);background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:10px;flex-shrink:0;z-index:200}
 #main{flex:1;overflow:hidden;display:flex;flex-direction:column;transition:opacity .28s ease,transform .28s ease}
-
-.btn{border-radius:22px;padding:5px 15px;font-size:12px;font-weight:600;letter-spacing:.2px;border:1px solid var(--border2);background:transparent;color:var(--text2)}
+.btn{border-radius:22px;padding:5px 15px;font-size:12px;font-weight:600;border:1px solid var(--border2);background:transparent;color:var(--text2)}
 .btn:hover{color:var(--text);border-color:var(--accent);background:var(--accent-bg)}
 .btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn-accent:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(124,111,247,.35)}
 .btn-danger{color:var(--danger);border-color:rgba(239,68,68,.3);background:var(--danger-bg)}
-.btn-danger:hover{background:rgba(239,68,68,.2)}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);backdrop-filter:blur(18px)}
-
 .loader{width:22px;height:22px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 #loading{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text3);font-size:13px}
-
-/* AUTH */
 #auth-scr{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
 .blob{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none}
 .auth-card{position:relative;z-index:1;width:390px;padding:42px 38px;animation:fadeDown .4s ease}
@@ -80,21 +72,15 @@ img{display:block}
 .db-badge.off{border-color:rgba(251,146,60,.3);color:#fb923c;background:rgba(251,146,60,.07)}
 .auth-demo{font-size:12px;color:var(--text3);text-align:center;margin-top:18px;padding-top:16px;border-top:1px solid var(--border);line-height:1.8}
 .auth-demo b{color:var(--accent2);font-weight:600}
-
-/* NAV */
 .nav-logo{background:none;border:none;font-size:18px;font-weight:800;color:var(--accent2);letter-spacing:-1px;padding:0}
 .nav-sp{flex:1}
 .nav-tab{border-radius:20px;border:none;background:transparent;font-size:12px;font-weight:600;color:var(--text3);padding:5px 14px}
 .nav-tab.on{background:var(--accent-bg);color:var(--accent2)}
-.nav-tab:hover:not(.on){color:var(--text)}
 .nav-div{width:1px;height:20px;background:var(--border2)}
 .nav-uname{font-size:12px;color:var(--text2);max-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .theme-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:15px;display:flex;align-items:center;justify-content:center}
 .theme-btn:hover{background:var(--accent-bg);color:var(--accent2);border-color:var(--accent)}
-.admin-link{padding:5px 12px;border-radius:16px;border:1px solid rgba(245,158,11,.3);background:rgba(245,158,11,.08);color:#f59e0b;font-size:11px;font-weight:700;letter-spacing:.3px;text-decoration:none}
-.admin-link:hover{background:rgba(245,158,11,.15)}
-
-/* WALL */
+.admin-link{padding:5px 12px;border-radius:16px;border:1px solid rgba(245,158,11,.3);background:rgba(245,158,11,.08);color:#f59e0b;font-size:11px;font-weight:700;text-decoration:none}
 #wall-view{flex:1;display:flex;flex-direction:column;overflow:hidden}
 #prof-bar{background:var(--bg);border-bottom:1px solid var(--border);padding:10px 18px;display:flex;align-items:center;gap:14px;flex-shrink:0;position:relative;overflow:hidden}
 #wall-canvas{flex:1;position:relative;overflow:hidden}
@@ -108,7 +94,7 @@ img{display:block}
 .bm-bg{background:var(--surface);border:1px solid rgba(124,111,247,.25);backdrop-filter:blur(14px)}
 .bt-view{padding:13px 16px;height:100%;overflow:hidden;white-space:pre-wrap;line-height:1.7}
 .bt-edit{width:100%;height:100%;background:transparent;border:none;outline:none;resize:none;padding:13px 16px;line-height:1.7;color:var(--text)}
-.b-del{position:absolute;top:-27px;right:0;padding:2px 9px;border-radius:5px;border:1px solid rgba(239,68,68,.4);background:var(--danger-bg);color:#f87171;font-size:10px;font-weight:700;opacity:0;transition:opacity .2s;white-space:nowrap;letter-spacing:.4px}
+.b-del{position:absolute;top:-27px;right:0;padding:2px 9px;border-radius:5px;border:1px solid rgba(239,68,68,.4);background:var(--danger-bg);color:#f87171;font-size:10px;font-weight:700;opacity:0;transition:opacity .2s;white-space:nowrap}
 .block:hover .b-del{opacity:1}
 .b-edit-mode .block-in{box-shadow:0 0 0 2px var(--accent)!important}
 .music-wrap{display:flex;align-items:center;gap:13px;height:100%;padding:0 15px}
@@ -125,17 +111,15 @@ img{display:block}
 .pb-fav{width:30px;height:30px;border-radius:50%;border-width:1.5px;border-style:solid;font-size:12px;font-weight:700;background:transparent;transition:transform .2s;font-family:var(--serif)}
 .pb-fav:hover{transform:scale(1.2)}
 #edit-tb{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:8px;align-items:center}
-.tb-pill{padding:9px 20px;border-radius:24px;font-size:13px;font-weight:700;letter-spacing:.2px;backdrop-filter:blur(14px)}
+.tb-pill{padding:9px 20px;border-radius:24px;font-size:13px;font-weight:700;backdrop-filter:blur(14px)}
 .tb-add{border:1px solid rgba(124,111,247,.4);background:var(--bg);color:var(--accent2)}
 .tb-add:hover{background:var(--accent-bg)}
 .tb-save{border:none;background:var(--accent);color:#fff;box-shadow:0 4px 16px rgba(124,111,247,.35)}
 .tb-save:hover{background:var(--accent2);transform:translateY(-1px)}
-.add-menu{position:absolute;bottom:110%;left:0;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;overflow:hidden;backdrop-filter:blur(24px);min-width:190px;display:none;box-shadow:0 8px 36px rgba(0,0,0,.4);animation:fadeDown .2s ease}
+.add-menu{position:absolute;bottom:110%;left:0;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;overflow:hidden;backdrop-filter:blur(24px);min-width:190px;display:none;box-shadow:0 8px 36px rgba(0,0,0,.4)}
 .add-menu.open{display:block}
 .add-item{display:block;width:100%;padding:11px 18px;background:transparent;border:none;color:var(--text2);text-align:left;font-size:13px;font-weight:500}
 .add-item:hover{background:var(--accent-bg);color:var(--accent2)}
-
-/* FRIENDS */
 #fr-view{flex:1;overflow:auto;padding:24px}
 .sec-lbl{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:14px}
 .user-row{display:flex;align-items:center;gap:13px;padding:11px 0;border-bottom:1px solid var(--border)}
@@ -143,38 +127,85 @@ img{display:block}
 .fr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:4px}
 .fr-card{padding:18px;cursor:pointer;transition:transform .2s,border-color .2s}
 .fr-card:hover{transform:translateY(-2px)}
-
-/* BANNED BADGE */
-.ban-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);margin-left:6px;letter-spacing:.3px}
-.warn-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.3);margin-left:4px;letter-spacing:.3px}
-
+.ban-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);margin-left:6px}
 .av{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-family:var(--serif)}
-
-#notif{position:fixed;top:62px;left:50%;transform:translateX(-50%);z-index:9999;padding:8px 22px;border-radius:24px;font-size:12px;font-weight:600;letter-spacing:.3px;display:none;white-space:nowrap;animation:notif .3s ease;backdrop-filter:blur(20px)}
+#notif{position:fixed;top:62px;left:50%;transform:translateX(-50%);z-index:9999;padding:8px 22px;border-radius:24px;font-size:12px;font-weight:600;display:none;white-space:nowrap;animation:notif .3s ease;backdrop-filter:blur(20px)}
 </style>
 </head>
 <body>
 <div id="app">
   <nav id="nav" style="display:none"></nav>
-  <div id="main"></div>
+  <div id="main"><div id="loading"><div class="loader"></div><p>Загружаем...</p></div></div>
 </div>
 <div id="notif"></div>
 <script>
 'use strict';
-// Wait for firebase.js to load DB
-(function waitDB() {
-  if (window.DB) init();
-  else setTimeout(waitDB, 30);
-})();
 
-const S = {
-  currentUser: null,
-  viewingUser: null,
-  tab: 'wall',
-  editing: false,
-  theme: localStorage.getItem('mw_theme') || 'dark',
+// ═══════════════ DATABASE ═══════════════
+const FIREBASE_URL = '${FBURL}';
+
+const _fb = {
+  async get(p){try{const r=await fetch(FIREBASE_URL+'/'+p+'.json');return r.ok?r.json():null;}catch{return null;}},
+  async set(p,d){try{await fetch(FIREBASE_URL+'/'+p+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});}catch{}},
+  async del(p){try{await fetch(FIREBASE_URL+'/'+p+'.json',{method:'DELETE'});}catch{}},
 };
-document.documentElement.dataset.theme = S.theme;
+
+const LS_KEY='mywall_v5';
+const DEMO={
+  users:{
+    leha249:{username:'leha249',password:'admin123',displayName:'Leha ⚡',bio:'создатель этого сайта',avatar:'L',color:'#f59e0b',role:'admin'},
+    nova:{username:'nova',password:'1234',displayName:'Nova ✦',bio:'digital wanderer',avatar:'N',color:'#7c6ff7'},
+    kira:{username:'kira',password:'1234',displayName:'Kira ☽',bio:'photographer & night owl',avatar:'K',color:'#ec4899'},
+    echo:{username:'echo',password:'1234',displayName:'Echo ◈',bio:'sound designer',avatar:'E',color:'#10b981'},
+  },
+  walls:{
+    leha249:[
+      {id:'a1',type:'text',x:50,y:60,w:320,h:100,content:'это мой сайт ⚡\nадминистратор MyWall',style:{fontSize:20,color:'#f59e0b',italic:true,family:'serif'}},
+      {id:'a2',type:'music',x:50,y:200,w:270,h:78,content:{title:'COPYCAT',artist:'Billie Eilish'}},
+    ],
+    nova:[
+      {id:'n1',type:'text',x:50,y:70,w:300,h:110,content:'welcome to my wall ✦\nthis is my little corner of the internet',style:{fontSize:18,color:'',italic:true,family:'serif'}},
+      {id:'n2',type:'text',x:400,y:55,w:215,h:86,content:'currently: ambient music, polaroids, late night drives',style:{fontSize:12,color:'#7c6ff7'}},
+      {id:'n3',type:'image',x:50,y:225,w:228,h:168,content:'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=500'},
+      {id:'n4',type:'music',x:332,y:200,w:268,h:78,content:{title:'Midnight City',artist:'M83'}},
+    ],
+    kira:[
+      {id:'k1',type:'image',x:40,y:40,w:288,h:202,content:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500'},
+      {id:'k2',type:'text',x:375,y:48,w:228,h:100,content:'catching light\nand letting it go',style:{fontSize:22,color:'#ec4899',italic:true,family:'serif'}},
+      {id:'k3',type:'music',x:40,y:285,w:265,h:78,content:{title:'Golden Hour',artist:'JVKE'}},
+    ],
+    echo:[
+      {id:'e1',type:'text',x:40,y:50,w:328,h:82,content:'frequencies & feelings',style:{fontSize:26,color:'#10b981',family:'mono'}},
+      {id:'e2',type:'music',x:425,y:40,w:232,h:78,content:{title:'Circles',artist:'Mac Miller'}},
+      {id:'e3',type:'image',x:40,y:174,w:265,h:183,content:'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=500'},
+    ],
+  },
+  friends:{leha249:['nova','kira'],nova:['kira','echo'],kira:['nova'],echo:['nova']},
+  bans:{},warnings:{},
+};
+
+let _ls=(() => { try{const d=JSON.parse(localStorage.getItem(LS_KEY));if(d)return d;}catch{}return JSON.parse(JSON.stringify(DEMO)); })();
+for(const[u,d] of Object.entries(DEMO.users))   if(!_ls.users[u])   _ls.users[u]=d;
+for(const[u,w] of Object.entries(DEMO.walls))   if(!_ls.walls[u])   _ls.walls[u]=w;
+for(const[u,f] of Object.entries(DEMO.friends)) if(!_ls.friends[u]) _ls.friends[u]=f;
+if(!_ls.bans)_ls.bans={};if(!_ls.warnings)_ls.warnings={};
+function lsSave(){try{localStorage.setItem(LS_KEY,JSON.stringify(_ls));}catch{}}
+
+const DB={
+  async getUser(u){const d=await _fb.get('users/'+u);if(d)return d;return _ls.users[u]||null;},
+  async setUser(u,d){await _fb.set('users/'+u,d);_ls.users[u]=d;lsSave();},
+  async getAllUsers(){const d=await _fb.get('users');if(d)return Object.values(d);return Object.values(_ls.users);},
+  async getWall(u){const w=await _fb.get('walls/'+u);if(w!=null){if(Array.isArray(w))return w;if(typeof w==='object')return Object.values(w);}return JSON.parse(JSON.stringify(_ls.walls[u]||[]));},
+  async setWall(u,b){await _fb.set('walls/'+u,b);_ls.walls[u]=b;lsSave();},
+  async getFriends(u){const f=await _fb.get('friends/'+u);if(f!=null){if(Array.isArray(f))return f;if(typeof f==='object')return Object.values(f);}return [...(_ls.friends[u]||[])];},
+  async setFriends(u,l){await _fb.set('friends/'+u,l);_ls.friends[u]=l;lsSave();},
+  async getBan(u){const b=await _fb.get('bans/'+u);return b||_ls.bans[u]||null;},
+  async getAllBans(){const b=await _fb.get('bans');return b||_ls.bans||{};},
+};
+
+// ═══════════════ APP STATE ═══════════════
+const S={currentUser:null,viewingUser:null,tab:'wall',editing:false,theme:localStorage.getItem('mw_theme')||'dark'};
+document.documentElement.dataset.theme=S.theme;
 
 function $(id){return document.getElementById(id);}
 function el(tag,p,...kids){
@@ -188,37 +219,28 @@ function el(tag,p,...kids){
   for(const c of kids){if(c==null)continue;e.appendChild(typeof c==='string'?document.createTextNode(c):c);}
   return e;
 }
-
 let _nt;
-function notify(msg,type='ok'){
-  const n=$('notif');
-  n.textContent=msg;n.style.display='block';
-  n.style.background=type==='ok'?'rgba(124,111,247,.18)':'rgba(239,68,68,.18)';
-  n.style.border=`1px solid ${type==='ok'?'rgba(124,111,247,.4)':'rgba(239,68,68,.4)'}`;
-  n.style.color=type==='ok'?'#a78bfa':'#f87171';
+function notify(msg,type){
+  const n=$('notif');n.textContent=msg;n.style.display='block';
+  const ok=type!=='err';
+  n.style.background=ok?'rgba(124,111,247,.18)':'rgba(239,68,68,.18)';
+  n.style.border='1px solid '+(ok?'rgba(124,111,247,.4)':'rgba(239,68,68,.4)');
+  n.style.color=ok?'#a78bfa':'#f87171';
   clearTimeout(_nt);_nt=setTimeout(()=>n.style.display='none',2800);
 }
-
-function toggleTheme(){
-  S.theme=S.theme==='dark'?'light':'dark';
-  document.documentElement.dataset.theme=S.theme;
-  localStorage.setItem('mw_theme',S.theme);
-  renderNav();
-}
-
+function toggleTheme(){S.theme=S.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=S.theme;localStorage.setItem('mw_theme',S.theme);renderNav();}
 function Av(user,size){
   size=size||40;
-  return el('div',{className:'av',style:{width:size+'px',height:size+'px',background:user.color+'22',border:`2px solid ${user.color}`,fontSize:(size*.38)+'px',color:user.color}},user.avatar||user.username[0].toUpperCase());
+  return el('div',{className:'av',style:{width:size+'px',height:size+'px',background:user.color+'22',border:'2px solid '+user.color,fontSize:(size*.38)+'px',color:user.color}},user.avatar||user.username[0].toUpperCase());
 }
-
 function dc(x){return JSON.parse(JSON.stringify(x));}
 
-// ── NAV ──────────────────────────────────────────────────────
+// ═══════════════ NAV ═══════════════
 function renderNav(){
   const nav=$('nav');nav.innerHTML='';
   if(!S.currentUser){nav.style.display='none';return;}
   nav.style.display='flex';
-  nav.appendChild(el('button',{className:'nav-logo',onClick(){S.viewingUser=S.currentUser.username;S.tab='wall';S.editing=false;renderMain();}},'\u2726 MyWall'));
+  nav.appendChild(el('button',{className:'nav-logo',onClick(){S.viewingUser=S.currentUser.username;S.tab='wall';S.editing=false;renderMain();}},'✦ MyWall'));
   nav.appendChild(el('div',{className:'nav-sp'}));
   for(const[t,lb] of [['wall','Стена'],['friends','Друзья']]){
     nav.appendChild(el('button',{className:'nav-tab'+(S.tab===t?' on':''),onClick(){S.tab=t;if(t==='wall')S.viewingUser=S.currentUser.username;S.editing=false;renderMain();}},lb));
@@ -226,14 +248,12 @@ function renderNav(){
   nav.appendChild(el('div',{className:'nav-div'}));
   nav.appendChild(Av(S.currentUser,28));
   nav.appendChild(el('span',{className:'nav-uname'},S.currentUser.displayName));
-  if(S.currentUser.username==='leha249'){
-    nav.appendChild(el('a',{className:'admin-link',href:'admin.html'},'⚡ Админ'));
-  }
-  nav.appendChild(el('button',{className:'theme-btn',title:'Тема',onClick:toggleTheme},S.theme==='dark'?'☀':'🌙'));
+  if(S.currentUser.username==='leha249')nav.appendChild(el('a',{className:'admin-link',href:'admin.html'},'⚡ Админ'));
+  nav.appendChild(el('button',{className:'theme-btn',onClick:toggleTheme},S.theme==='dark'?'☀':'🌙'));
   nav.appendChild(el('button',{className:'btn',onClick(){S.currentUser=null;S.editing=false;renderMain();}},'Выйти'));
 }
 
-// ── AUTH ─────────────────────────────────────────────────────
+// ═══════════════ AUTH ═══════════════
 function renderAuth(){
   const main=$('main');main.innerHTML='';main.style.overflow='auto';
   const scr=el('div',{id:'auth-scr'});
@@ -242,21 +262,21 @@ function renderAuth(){
   }
   const card=el('div',{className:'card auth-card'});scr.appendChild(card);
   const logo=el('div',{className:'auth-logo'});
-  logo.appendChild(el('div',{className:'auth-logo-icon'},'\u2726'));
+  logo.appendChild(el('div',{className:'auth-logo-icon'},'✦'));
   logo.appendChild(el('h1',{},'MyWall'));
   logo.appendChild(el('p',{},'твоя страница, твои правила'));
   card.appendChild(logo);
-  card.appendChild(el('div',{className:'db-badge '+(USE_FIREBASE?'on':'off')},USE_FIREBASE?'🟢 Firebase подключён — общая база данных':'🟠 localStorage — локальные данные (настрой Firebase для общей БД)'));
+  card.appendChild(el('div',{className:'db-badge on'},'🟢 Firebase подключён — данные общие для всех'));
   let mode='login';
   const tabs=el('div',{className:'auth-tabs'});
-  const t1=el('button',{className:'auth-tab on',onClick(){mode='login';t1.classList.add('on');t2.classList.remove('on');dnw.style.display='none';sbtn.textContent='Войти →';}}, 'Войти');
-  const t2=el('button',{className:'auth-tab',     onClick(){mode='reg';  t2.classList.add('on');t1.classList.remove('on');dnw.style.display='flex';sbtn.textContent='Создать аккаунт →';}}, 'Регистрация');
+  const t1=el('button',{className:'auth-tab on',onClick(){mode='login';t1.classList.add('on');t2.classList.remove('on');dnw.style.display='none';sbtn.textContent='Войти →';}},'Войти');
+  const t2=el('button',{className:'auth-tab',onClick(){mode='reg';t2.classList.add('on');t1.classList.remove('on');dnw.style.display='flex';sbtn.textContent='Создать аккаунт →';}},'Регистрация');
   tabs.appendChild(t1);tabs.appendChild(t2);card.appendChild(tabs);
   const flds=el('div',{style:{display:'flex',flexDirection:'column',gap:'14px'}});
   const mkF=(lbl,type,ph)=>{const w=el('div',{className:'auth-field'});w.appendChild(el('label',{},lbl));const i=el('input',{className:'auth-inp',type,placeholder:ph});w.appendChild(i);return[w,i];};
-  const [dnw,dnI]=mkF('Имя на сайте','text','Как тебя звать?');dnw.style.display='none';
-  const [uw,usrI]=mkF('Username','text','только латиница');
-  const [pw,passI]=mkF('Пароль','password','••••••••');
+  const[dnw,dnI]=mkF('Имя на сайте','text','Как тебя звать?');dnw.style.display='none';
+  const[uw,usrI]=mkF('Username','text','только латиница');
+  const[pw,passI]=mkF('Пароль','password','••••••••');
   const errD=el('div',{className:'auth-err'});
   flds.appendChild(dnw);flds.appendChild(uw);flds.appendChild(pw);flds.appendChild(errD);
   card.appendChild(flds);
@@ -268,19 +288,19 @@ function renderAuth(){
     errD.style.display='none';
     const usr=usrI.value.trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
     const pass=passI.value;
+    if(!usr||!pass){showErr('Заполни все поля');return;}
     sbtn.disabled=true;sbtn.textContent='...';
     if(mode==='login'){
       const u=await DB.getUser(usr);
       if(!u){showErr('Пользователь не найден');sbtn.disabled=false;sbtn.textContent='Войти →';return;}
       if(u.password!==pass){showErr('Неверный пароль');sbtn.disabled=false;sbtn.textContent='Войти →';return;}
-      // Check ban
       const ban=await DB.getBan(usr);
       if(ban){showErr('Аккаунт заблокирован: '+ban.reason);sbtn.disabled=false;sbtn.textContent='Войти →';return;}
       S.currentUser=u;S.viewingUser=usr;S.tab='wall';S.editing=false;
       renderAll();notify('С возвращением, '+u.displayName+' ✦');
     } else {
       const dn=dnI.value.trim();
-      if(!dn||!usr||!pass){showErr('Заполни все поля');sbtn.disabled=false;sbtn.textContent='Создать аккаунт →';return;}
+      if(!dn){showErr('Введи отображаемое имя');sbtn.disabled=false;sbtn.textContent='Создать аккаунт →';return;}
       if(usr.length<3){showErr('Username минимум 3 символа');sbtn.disabled=false;sbtn.textContent='Создать аккаунт →';return;}
       const ex=await DB.getUser(usr);
       if(ex){showErr('Username занят');sbtn.disabled=false;sbtn.textContent='Создать аккаунт →';return;}
@@ -298,14 +318,13 @@ function renderAuth(){
   main.appendChild(scr);
 }
 
-// ── FRIENDS ──────────────────────────────────────────────────
+// ═══════════════ FRIENDS ═══════════════
 async function renderFriends(){
   const main=$('main');
   main.innerHTML='<div id="loading"><div class="loader"></div><p>Загружаем...</p></div>';
   main.style.overflow='auto';
   const me=S.currentUser.username;
-  const[allUsers,myFriends]=await Promise.all([DB.getAllUsers(),DB.getFriends(me)]);
-  const bans=await DB.getAllBans();
+  const[allUsers,myFriends,bans]=await Promise.all([DB.getAllUsers(),DB.getFriends(me),DB.getAllBans()]);
   const others=allUsers.filter(u=>u.username!==me);
   main.innerHTML='';
   const wrap=el('div',{id:'fr-view',style:{animation:'fadeUp .3s ease'}});
@@ -316,10 +335,10 @@ async function renderFriends(){
     const row=el('div',{className:'user-row'});
     row.appendChild(Av(u,36));
     const info=el('div',{style:{flex:'1'}});
-    const nameRow=el('div',{style:{display:'flex',alignItems:'center'}});
-    nameRow.appendChild(el('span',{style:{fontSize:'14px',fontWeight:'700',color:'var(--text)'}},u.displayName));
-    if(bans[u.username])nameRow.appendChild(el('span',{className:'ban-badge'},'БАН'));
-    info.appendChild(nameRow);
+    const nr=el('div',{style:{display:'flex',alignItems:'center'}});
+    nr.appendChild(el('span',{style:{fontSize:'14px',fontWeight:'700',color:'var(--text)'}},u.displayName));
+    if(bans[u.username])nr.appendChild(el('span',{className:'ban-badge'},'БАН'));
+    info.appendChild(nr);
     info.appendChild(el('div',{style:{fontSize:'11px',color:'var(--text3)',fontFamily:'var(--serif)',fontStyle:'italic'}},'@'+u.username+(u.bio?' · '+u.bio:'')));
     row.appendChild(info);
     row.appendChild(el('button',{className:'btn',style:{marginRight:'6px'},onClick(){navigateTo(u.username);}},'🧱 Стена'));
@@ -330,8 +349,7 @@ async function renderFriends(){
         if(fr){await DB.setFriends(me,list.filter(f=>f!==u.username));notify('Удалён из друзей');}
         else{if(!list.includes(u.username))list.push(u.username);await DB.setFriends(me,list);notify('Добавлен! ✦');}
         renderFriends();}},fr?'✕ Удалить':'+ Добавить');
-    row.appendChild(fb);
-    box.appendChild(row);
+    row.appendChild(fb);box.appendChild(row);
   }
   wrap.appendChild(box);
   if(myFriends.length>0){
@@ -350,7 +368,7 @@ async function renderFriends(){
       ti.appendChild(el('div',{style:{fontSize:'11px',color:'var(--text3)',fontFamily:'var(--serif)',fontStyle:'italic'}},'@'+u.username));
       top.appendChild(ti);card.appendChild(top);
       if(u.bio)card.appendChild(el('p',{style:{fontSize:'11px',color:'var(--text3)',lineHeight:'1.6',marginBottom:'10px'}},u.bio));
-      card.appendChild(el('button',{style:{padding:'5px 14px',borderRadius:'16px',border:`1px solid ${u.color}44`,background:`${u.color}11`,color:u.color,fontSize:'11px',fontWeight:'700'},onClick(e){e.stopPropagation();navigateTo(f);}},'Открыть стену →'));
+      card.appendChild(el('button',{style:{padding:'5px 14px',borderRadius:'16px',border:'1px solid '+u.color+'44',background:u.color+'11',color:u.color,fontSize:'11px',fontWeight:'700'},onClick(e){e.stopPropagation();navigateTo(f);}},'Открыть стену →'));
       grid.appendChild(card);
     }
     wrap.appendChild(grid);
@@ -358,9 +376,8 @@ async function renderFriends(){
   main.appendChild(wrap);
 }
 
-// ── WALL ─────────────────────────────────────────────────────
+// ═══════════════ WALL ═══════════════
 let localBlocks=[],wallGen=0;
-
 async function renderWall(){
   const main=$('main');
   main.innerHTML='<div id="loading"><div class="loader"></div><p>Загружаем стену...</p></div>';
@@ -369,24 +386,21 @@ async function renderWall(){
   const viewUser=await DB.getUser(vu);
   if(!viewUser){main.innerHTML='<div style="padding:40px;color:var(--text3)">Пользователь не найден</div>';return;}
   const isMyWall=S.currentUser&&vu===S.currentUser.username;
-  const[myFriends,wallData]=await Promise.all([DB.getFriends(S.currentUser.username),DB.getWall(vu)]);
-  const ban=await DB.getBan(vu);
-  const warnings=await DB.getWarnings(vu);
+  const[myFriends,wallData,ban,warnings]=await Promise.all([DB.getFriends(S.currentUser.username),DB.getWall(vu),DB.getBan(vu),Promise.resolve([])]);
   localBlocks=dc(wallData);wallGen++;const gen=wallGen;
   main.innerHTML='';main.style.animation='slideIn .35s ease';
   const view=el('div',{id:'wall-view'});
   const bar=el('div',{id:'prof-bar'});
-  bar.appendChild(el('div',{style:{position:'absolute',inset:'0',background:`radial-gradient(ellipse at 0 50%, ${viewUser.color}18 0%, transparent 58%)`,pointerEvents:'none'}}));
+  bar.appendChild(el('div',{style:{position:'absolute',inset:'0',background:'radial-gradient(ellipse at 0 50%, '+viewUser.color+'18 0%, transparent 58%)',pointerEvents:'none'}}));
   bar.appendChild(Av(viewUser,44));
   const pinfo=el('div',{style:{flex:'1'}});
-  const nameWrap=el('div',{style:{display:'flex',alignItems:'center',gap:'8px'}});
-  nameWrap.appendChild(el('span',{className:'pb-name'},viewUser.displayName));
-  if(ban)nameWrap.appendChild(el('span',{className:'ban-badge'},'ЗАБЛОКИРОВАН'));
-  if(warnings.length>0)nameWrap.appendChild(el('span',{className:'warn-badge'},'⚠ '+warnings.length));
-  pinfo.appendChild(nameWrap);
+  const nw=el('div',{style:{display:'flex',alignItems:'center',gap:'8px'}});
+  nw.appendChild(el('span',{className:'pb-name'},viewUser.displayName));
+  if(ban)nw.appendChild(el('span',{className:'ban-badge'},'ЗАБЛОКИРОВАН'));
+  pinfo.appendChild(nw);
   pinfo.appendChild(el('div',{className:'pb-bio'},'@'+viewUser.username+(viewUser.bio?' · '+viewUser.bio:'')));
   bar.appendChild(pinfo);
-  // Friend avatars quick-nav
+  // friend avatars
   const vFriends=await DB.getFriends(vu);
   const nearby=[...new Set([...myFriends,...vFriends])].filter(f=>f!==vu).slice(0,6);
   const fnav=el('div',{className:'pb-fnav'});
@@ -396,18 +410,16 @@ async function renderWall(){
     bar.appendChild(el('button',{className:'btn '+(S.editing?'btn-accent':''),onClick(){S.editing=!S.editing;renderMain();}},S.editing?'✎ Правка вкл':'✎ Изменить'));
   } else {
     const fr=myFriends.includes(vu);
-    bar.appendChild(el('button',{className:'btn '+(fr?'':''),style:fr?{color:'var(--text3)'}:{color:'var(--accent2)',borderColor:'rgba(124,111,247,.35)',background:'var(--accent-bg)'},
+    bar.appendChild(el('button',{className:'btn',style:fr?{color:'var(--text3)'}:{color:'var(--accent2)',borderColor:'rgba(124,111,247,.35)',background:'var(--accent-bg)'},
       async onClick(){const list=await DB.getFriends(S.currentUser.username);if(fr){await DB.setFriends(S.currentUser.username,list.filter(f=>f!==vu));notify('Удалён из друзей');}else{if(!list.includes(vu))list.push(vu);await DB.setFriends(S.currentUser.username,list);notify('Добавлен! ✦');}renderMain();}},fr?'✓ В друзьях':'+ Добавить в друзья'));
   }
   view.appendChild(bar);
-  // Canvas
   const canvas=el('div',{id:'wall-canvas'});
-  canvas.appendChild(el('div',{className:'wall-bg',style:{background:`radial-gradient(ellipse at 14% 18%, ${viewUser.color}1c 0%, transparent 50%), radial-gradient(ellipse at 86% 82%, ${viewUser.color}0e 0%, transparent 48%), var(--bg)`}}));
+  canvas.appendChild(el('div',{className:'wall-bg',style:{background:'radial-gradient(ellipse at 14% 18%, '+viewUser.color+'1c 0%, transparent 50%), radial-gradient(ellipse at 86% 82%, '+viewUser.color+'0e 0%, transparent 48%), var(--bg)'}}));
   canvas.appendChild(el('div',{className:'wall-dots'}));
   const layer=el('div',{id:'blayer'});canvas.appendChild(layer);
-
-  function rBlocks(){if(wallGen!==gen)return;layer.innerHTML='';localBlocks.forEach(b=>layer.appendChild(mkBlock(b)));}
-  function mkBlock(block){
+  function rB(){if(wallGen!==gen)return;layer.innerHTML='';localBlocks.forEach(b=>layer.appendChild(mkB(b)));}
+  function mkB(block){
     const wrap=el('div',{className:'block'+(S.editing&&isMyWall?' b-edit-mode':''),style:{left:block.x+'px',top:block.y+'px',width:block.w+'px',height:block.h+'px'}});
     const inner=el('div',{className:'block-in'});wrap.appendChild(inner);
     if(block.type==='text'){
@@ -415,8 +427,8 @@ async function renderWall(){
       const s=block.style||{};
       const ff=s.family==='serif'?'var(--serif)':s.family==='mono'?'var(--mono)':'var(--font)';
       const col=s.color||'var(--text)';const fs=(s.fontSize||14)+'px';const fst=s.italic?'italic':'normal';
-      if(S.editing&&isMyWall){const ta=el('textarea',{className:'bt-edit',style:{fontSize:fs,fontFamily:ff,fontStyle:fst,color:col}});ta.value=block.content||'';ta.addEventListener('input',()=>{const bi=localBlocks.findIndex(b=>b.id===block.id);if(bi>-1)localBlocks[bi].content=ta.value;});inner.appendChild(ta);}
-      else{inner.appendChild(el('div',{className:'bt-view',style:{fontSize:fs,fontFamily:ff,fontStyle:fst,color:col}},block.content||''));}
+      if(S.editing&&isMyWall){const ta=el('textarea',{className:'bt-edit',style:{fontSize:fs,fontFamily:ff,fontStyle:fst,color:col}});ta.value=block.content||'';ta.addEventListener('input',()=>{const i=localBlocks.findIndex(b=>b.id===block.id);if(i>-1)localBlocks[i].content=ta.value;});inner.appendChild(ta);}
+      else inner.appendChild(el('div',{className:'bt-view',style:{fontSize:fs,fontFamily:ff,fontStyle:fst,color:col}},block.content||''));
     } else if(block.type==='image'){
       const img=el('img',{src:block.content||'',style:{width:'100%',height:'100%',objectFit:'cover',borderRadius:'10px'}});
       img.onerror=()=>{inner.style.cssText='background:var(--bg3);display:flex;align-items:center;justify-content:center;';inner.textContent='⚠ Не загрузилось';inner.style.color='var(--text3)';inner.style.fontSize='12px';};
@@ -432,31 +444,30 @@ async function renderWall(){
       const mw=el('div',{className:'music-wrap'});mw.appendChild(play);mw.appendChild(mi);inner.appendChild(mw);
     }
     if(S.editing&&isMyWall){
-      const del=el('button',{className:'b-del',onClick(e){e.stopPropagation();localBlocks=localBlocks.filter(b=>b.id!==block.id);rBlocks();}},'✕ УДАЛИТЬ');
-      wrap.appendChild(del);
+      wrap.appendChild(el('button',{className:'b-del',onClick(e){e.stopPropagation();localBlocks=localBlocks.filter(b=>b.id!==block.id);rB();}},'✕ УДАЛИТЬ'));
       let drag=false,sx=0,sy=0,bx=0,by=0;
       wrap.addEventListener('mousedown',e=>{if(e.target.tagName==='TEXTAREA'||e.target.tagName==='BUTTON')return;drag=true;e.preventDefault();const b=localBlocks.find(b=>b.id===block.id);if(b){bx=b.x;by=b.y;}sx=e.clientX;sy=e.clientY;wrap.style.cursor='grabbing';wrap.style.zIndex=50;document.body.style.userSelect='none';});
-      window.addEventListener('mousemove',e=>{if(!drag)return;const nx=bx+(e.clientX-sx),ny=by+(e.clientY-sy);const bi=localBlocks.findIndex(b=>b.id===block.id);if(bi>-1){localBlocks[bi].x=nx;localBlocks[bi].y=ny;}wrap.style.left=nx+'px';wrap.style.top=ny+'px';});
+      window.addEventListener('mousemove',e=>{if(!drag)return;const nx=bx+(e.clientX-sx),ny=by+(e.clientY-sy);const i=localBlocks.findIndex(b=>b.id===block.id);if(i>-1){localBlocks[i].x=nx;localBlocks[i].y=ny;}wrap.style.left=nx+'px';wrap.style.top=ny+'px';});
       window.addEventListener('mouseup',()=>{if(!drag)return;drag=false;wrap.style.cursor='grab';wrap.style.zIndex='';document.body.style.userSelect='';});
       wrap.style.cursor='grab';
-    } else {inner.style.boxShadow='0 4px 20px rgba(0,0,0,.3)';}
+    } else inner.style.boxShadow='0 4px 20px rgba(0,0,0,.3)';
     return wrap;
   }
-  rBlocks();
+  rB();
   if(S.editing&&isMyWall){
-    let menuOpen=false;
+    let mo=false;
     const tb=el('div',{id:'edit-tb'});const menu=el('div',{className:'add-menu'});
-    const addOpt=(lbl,type)=>{menu.appendChild(el('button',{className:'add-item',onClick(){menu.classList.remove('open');menuOpen=false;
-      if(type==='text'){localBlocks.push({id:'b'+Date.now(),type:'text',x:50+Math.random()*180,y:50+Math.random()*180,w:260,h:115,content:'Твой текст...',style:{fontSize:14,color:'',italic:false}});rBlocks();}
-      if(type==='image'){const u=prompt('URL изображения:');if(u){localBlocks.push({id:'b'+Date.now(),type:'image',x:50+Math.random()*150,y:50+Math.random()*150,w:240,h:180,content:u});rBlocks();}}
-      if(type==='music'){const t=prompt('Название:')||'Unknown';const a=prompt('Исполнитель:')||'Unknown';localBlocks.push({id:'b'+Date.now(),type:'music',x:50+Math.random()*150,y:50+Math.random()*150,w:280,h:78,content:{title:t,artist:a}});rBlocks();}
-    }},lbl));};
+    const addOpt=(lbl,type)=>menu.appendChild(el('button',{className:'add-item',onClick(){menu.classList.remove('open');mo=false;
+      if(type==='text'){localBlocks.push({id:'b'+Date.now(),type:'text',x:50+Math.random()*180,y:50+Math.random()*180,w:260,h:115,content:'Твой текст...',style:{fontSize:14,color:'',italic:false}});rB();}
+      if(type==='image'){const u=prompt('URL изображения:');if(u){localBlocks.push({id:'b'+Date.now(),type:'image',x:50+Math.random()*150,y:50+Math.random()*150,w:240,h:180,content:u});rB();}}
+      if(type==='music'){const t=prompt('Название:')||'Unknown';const a=prompt('Исполнитель:')||'Unknown';localBlocks.push({id:'b'+Date.now(),type:'music',x:50+Math.random()*150,y:50+Math.random()*150,w:280,h:78,content:{title:t,artist:a}});rB();}
+    }},lbl));
     addOpt('📝 Текст','text');addOpt('🖼 Изображение','image');addOpt('🎵 Музыка','music');
-    const addBtn=el('button',{className:'tb-pill tb-add',onClick(){menuOpen=!menuOpen;menu.classList.toggle('open',menuOpen);}},'\u002B Добавить блок');
+    const addBtn=el('button',{className:'tb-pill tb-add',onClick(){mo=!mo;menu.classList.toggle('open',mo);}},'+  Добавить блок');
     const saveBtn=el('button',{className:'tb-pill tb-save',async onClick(){saveBtn.disabled=true;saveBtn.textContent='Сохраняем...';await DB.setWall(vu,dc(localBlocks));S.editing=false;renderMain();notify('Стена сохранена ✓');}},'\u2713 Сохранить');
     const aw=el('div',{style:{position:'relative'}});aw.appendChild(menu);aw.appendChild(addBtn);
     tb.appendChild(aw);tb.appendChild(saveBtn);canvas.appendChild(tb);
-    document.addEventListener('click',e=>{if(!aw.contains(e.target)){menu.classList.remove('open');menuOpen=false;}});
+    document.addEventListener('click',e=>{if(!aw.contains(e.target)){menu.classList.remove('open');mo=false;}});
   }
   view.appendChild(canvas);main.appendChild(view);
 }
@@ -475,11 +486,11 @@ function renderMain(){
   renderNav();
   if(!S.currentUser){renderAuth();return;}
   if(S.tab==='friends'){renderFriends();return;}
-  if(S.viewingUser){renderWall();return;}
-  S.viewingUser=S.currentUser.username;renderWall();
+  if(!S.viewingUser)S.viewingUser=S.currentUser.username;
+  renderWall();
 }
 
-function init(){renderAll();}
+renderAll();
 </script>
 </body>
 </html>
