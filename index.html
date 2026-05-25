@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyWall ✦</title>
+<script src="firebase.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Syne+Mono&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#08090f; --bg2:#0f1220; --bg3:#161b2e;
+  --surface:rgba(15,18,36,0.82); --border:rgba(180,190,255,0.09); --border2:rgba(180,190,255,0.16);
+  --text:#e8eaf6; --text2:#8b92b8; --text3:#4a5080;
+  --accent:#7c6ff7; --accent2:#a78bfa; --accent-bg:rgba(124,111,247,0.12);
+  --danger:#ef4444; --danger-bg:rgba(239,68,68,0.1);
+  --nav-h:54px; --r:12px;
+  --font:'Syne',system-ui,sans-serif;
+  --serif:'Crimson Pro',Georgia,serif;
+  --mono:'Syne Mono',monospace;
+  color-scheme:dark;
+}
+[data-theme="light"] {
+  --bg:#f0f0f7; --bg2:#e4e4f0; --bg3:#d8d8ec;
+  --surface:rgba(255,255,255,0.85); --border:rgba(80,80,160,0.12); --border2:rgba(80,80,160,0.22);
+  --text:#1a1a3a; --text2:#4a4a7a; --text3:#9090b8;
+  --accent:#5b4fe0; --accent2:#7c6ff7; --accent-bg:rgba(91,79,224,0.1);
+  color-scheme:light;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden;font-size:14px}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px}
+input,textarea,button{font-family:inherit}
+input,textarea{outline:none;transition:border-color .2s,box-shadow .2s}
+input:focus,textarea:focus{border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(124,111,247,.14)}
+button{cursor:pointer;transition:all .18s}
+img{display:block}
+
+@keyframes fadeDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeUp  {from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn {from{opacity:0;transform:translateX(30px)} to{opacity:1;transform:translateX(0)}}
+@keyframes notif   {from{opacity:0;transform:translateX(-50%) scale(.9)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+@keyframes spin    {to{transform:rotate(360deg)}}
+
+#app{display:flex;flex-direction:column;height:100vh}
+#nav{height:var(--nav-h);background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:10px;flex-shrink:0;z-index:200}
+#main{flex:1;overflow:hidden;display:flex;flex-direction:column;transition:opacity .28s ease,transform .28s ease}
+
+.btn{border-radius:22px;padding:5px 15px;font-size:12px;font-weight:600;letter-spacing:.2px;border:1px solid var(--border2);background:transparent;color:var(--text2)}
+.btn:hover{color:var(--text);border-color:var(--accent);background:var(--accent-bg)}
+.btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-accent:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(124,111,247,.35)}
+.btn-danger{color:var(--danger);border-color:rgba(239,68,68,.3);background:var(--danger-bg)}
+.btn-danger:hover{background:rgba(239,68,68,.2)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);backdrop-filter:blur(18px)}
+
+.loader{width:22px;height:22px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+#loading{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text3);font-size:13px}
+
+/* AUTH */
+#auth-scr{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.blob{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none}
+.auth-card{position:relative;z-index:1;width:390px;padding:42px 38px;animation:fadeDown .4s ease}
+.auth-logo{text-align:center;margin-bottom:30px}
+.auth-logo-icon{font-size:38px;line-height:1;margin-bottom:8px}
+.auth-logo h1{font-size:28px;font-weight:800;color:var(--text);letter-spacing:-1px}
+.auth-logo p{font-size:13px;color:var(--text3);margin-top:4px;font-family:var(--serif);font-style:italic}
+.auth-tabs{display:flex;background:var(--bg3);border-radius:10px;padding:3px;margin-bottom:26px;gap:3px}
+.auth-tab{flex:1;padding:8px;border-radius:7px;border:none;background:transparent;font-size:13px;font-weight:600;color:var(--text3)}
+.auth-tab.on{background:var(--accent);color:#fff;box-shadow:0 2px 10px rgba(124,111,247,.4)}
+.auth-field{display:flex;flex-direction:column;gap:5px}
+.auth-field label{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.7px;text-transform:uppercase}
+.auth-inp{width:100%;padding:11px 14px;border-radius:9px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:14px}
+.auth-inp::placeholder{color:var(--text3)}
+.auth-btn{width:100%;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:700;margin-top:6px}
+.auth-btn:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 6px 24px rgba(124,111,247,.4)}
+.auth-err{color:#f87171;font-size:12px;text-align:center;padding:4px 0;display:none}
+.db-badge{font-size:11px;text-align:center;margin-bottom:18px;padding:7px 12px;border-radius:8px;border:1px solid var(--border)}
+.db-badge.on{border-color:rgba(52,211,153,.3);color:#34d399;background:rgba(52,211,153,.07)}
+.db-badge.off{border-color:rgba(251,146,60,.3);color:#fb923c;background:rgba(251,146,60,.07)}
+.auth-demo{font-size:12px;color:var(--text3);text-align:center;margin-top:18px;padding-top:16px;border-top:1px solid var(--border);line-height:1.8}
+.auth-demo b{color:var(--accent2);font-weight:600}
+
+/* NAV */
+.nav-logo{background:none;border:none;font-size:18px;font-weight:800;color:var(--accent2);letter-spacing:-1px;padding:0}
+.nav-sp{flex:1}
+.nav-tab{border-radius:20px;border:none;background:transparent;font-size:12px;font-weight:600;color:var(--text3);padding:5px 14px}
+.nav-tab.on{background:var(--accent-bg);color:var(--accent2)}
+.nav-tab:hover:not(.on){color:var(--text)}
+.nav-div{width:1px;height:20px;background:var(--border2)}
+.nav-uname{font-size:12px;color:var(--text2);max-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.theme-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:15px;display:flex;align-items:center;justify-content:center}
+.theme-btn:hover{background:var(--accent-bg);color:var(--accent2);border-color:var(--accent)}
+.admin-link{padding:5px 12px;border-radius:16px;border:1px solid rgba(245,158,11,.3);background:rgba(245,158,11,.08);color:#f59e0b;font-size:11px;font-weight:700;letter-spacing:.3px;text-decoration:none}
+.admin-link:hover{background:rgba(245,158,11,.15)}
+
+/* WALL */
+#wall-view{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#prof-bar{background:var(--bg);border-bottom:1px solid var(--border);padding:10px 18px;display:flex;align-items:center;gap:14px;flex-shrink:0;position:relative;overflow:hidden}
+#wall-canvas{flex:1;position:relative;overflow:hidden}
+.wall-bg{position:absolute;inset:0}
+.wall-dots{position:absolute;inset:0;opacity:.055;background-image:radial-gradient(circle,var(--text3) 1px,transparent 1px);background-size:32px 32px}
+[data-theme="light"] .wall-dots{opacity:.2}
+#blayer{position:absolute;inset:0}
+.block{position:absolute}
+.block-in{width:100%;height:100%;border-radius:10px;overflow:hidden;transition:box-shadow .2s}
+.bt-bg{background:var(--surface);border:1px solid var(--border);backdrop-filter:blur(14px)}
+.bm-bg{background:var(--surface);border:1px solid rgba(124,111,247,.25);backdrop-filter:blur(14px)}
+.bt-view{padding:13px 16px;height:100%;overflow:hidden;white-space:pre-wrap;line-height:1.7}
+.bt-edit{width:100%;height:100%;background:transparent;border:none;outline:none;resize:none;padding:13px 16px;line-height:1.7;color:var(--text)}
+.b-del{position:absolute;top:-27px;right:0;padding:2px 9px;border-radius:5px;border:1px solid rgba(239,68,68,.4);background:var(--danger-bg);color:#f87171;font-size:10px;font-weight:700;opacity:0;transition:opacity .2s;white-space:nowrap;letter-spacing:.4px}
+.block:hover .b-del{opacity:1}
+.b-edit-mode .block-in{box-shadow:0 0 0 2px var(--accent)!important}
+.music-wrap{display:flex;align-items:center;gap:13px;height:100%;padding:0 15px}
+.m-play{width:40px;height:40px;border-radius:50%;border:1.5px solid rgba(124,111,247,.4);background:transparent;color:var(--accent2);font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.m-play:hover,.m-play.on{background:var(--accent-bg);border-color:var(--accent2)}
+.m-info{overflow:hidden;flex:1}
+.m-title{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-artist{font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--serif);font-style:italic}
+.m-bar{margin-top:8px;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.m-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;width:0;transition:width .3s}
+.pb-name{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.3px}
+.pb-bio{font-size:11px;color:var(--text3);margin-top:1px;font-family:var(--serif);font-style:italic}
+.pb-fnav{display:flex;gap:6px;align-items:center}
+.pb-fav{width:30px;height:30px;border-radius:50%;border-width:1.5px;border-style:solid;font-size:12px;font-weight:700;background:transparent;transition:transform .2s;font-family:var(--serif)}
+.pb-fav:hover{transform:scale(1.2)}
+#edit-tb{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:8px;align-items:center}
+.tb-pill{padding:9px 20px;border-radius:24px;font-size:13px;font-weight:700;letter-spacing:.2px;backdrop-filter:blur(14px)}
+.tb-add{border:1px solid rgba(124,111,247,.4);background:var(--bg);color:var(--accent2)}
+.tb-add:hover{background:var(--accent-bg)}
+.tb-save{border:none;background:var(--accent);color:#fff;box-shadow:0 4px 16px rgba(124,111,247,.35)}
+.tb-save:hover{background:var(--accent2);transform:translateY(-1px)}
+.add-menu{position:absolute;bottom:110%;left:0;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;overflow:hidden;backdrop-filter:blur(24px);min-width:190px;display:none;box-shadow:0 8px 36px rgba(0,0,0,.4);animation:fadeDown .2s ease}
+.add-menu.open{display:block}
+.add-item{display:block;width:100%;padding:11px 18px;background:transparent;border:none;color:var(--text2);text-align:left;font-size:13px;font-weight:500}
+.add-item:hover{background:var(--accent-bg);color:var(--accent2)}
+
+/* FRIENDS */
+#fr-view{flex:1;overflow:auto;padding:24px}
+.sec-lbl{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:14px}
+.user-row{display:flex;align-items:center;gap:13px;padding:11px 0;border-bottom:1px solid var(--border)}
+.user-row:last-child{border-bottom:none}
+.fr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:4px}
+.fr-card{padding:18px;cursor:pointer;transition:transform .2s,border-color .2s}
+.fr-card:hover{transform:translateY(-2px)}
+
+/* BANNED BADGE */
+.ban-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);margin-left:6px;letter-spacing:.3px}
+.warn-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.3);margin-left:4px;letter-spacing:.3px}
+
+.av{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-family:var(--serif)}
+
+#notif{position:fixed;top:62px;left:50%;transform:translateX(-50%);z-index:9999;padding:8px 22px;border-radius:24px;font-size:12px;font-weight:600;letter-spacing:.3px;display:none;white-space:nowrap;animation:notif .3s ease;backdrop-filter:blur(20px)}
+</style>
+</head>
+<body>
+<div id="app">
+  <nav id="nav" style="display:none"></nav>
+  <div id="main"></div>
+</div>
+<div id="notif"></div>
+<script>
+'use strict';
+// Wait for firebase.js to load DB
+(function waitDB() {
+  if (window.DB) init();
+  else setTimeout(waitDB, 30);
+})();
+
+const S = {
+  currentUser: null,
+  viewingUser: null,
+  tab: 'wall',
+  editing: false,
+  theme: localStorage.getItem('mw_theme') || 'dark',
+};
+document.documentElement.dataset.theme = S.theme;
+
+function $(id){return document.getElementById(id);}
+function el(tag,p,...kids){
+  const e=document.createElement(tag);
+  for(const[k,v] of Object.entries(p||{})){
+    if(k==='style'&&typeof v==='object')Object.assign(e.style,v);
+    else if(k.startsWith('on'))e.addEventListener(k.slice(2).toLowerCase(),v);
+    else if(k==='html')e.innerHTML=v;
+    else e[k]=v;
+  }
+  for(const c of kids){if(c==null)continue;e.appendChild(typeof c==='string'?document.createTextNode(c):c);}
+  return e;
+}
+
+let _nt;
+function notify(msg,type='ok'){
+  const n=$('notif');
+  n.textContent=msg;n.style.display='block';
+  n.style.background=type==='ok'?'rgba(124,111,247,.18)':'rgba(239,68,68,.18)';
+  n.style.border=`1px solid ${type==='ok'?'rgba(124,111,247,.4)':'rgba(239,68,68,.4)'}`;
+  n.style.color=type==='ok'?'#a78bfa':'#f87171';
+  clearTimeout(_nt);_nt=setTimeout(()=>n.style.display='none',2800);
+}
+
+function toggleTheme(){
+  S.theme=S.theme==='dark'?'light':'dark';
+  document.documentElement.dataset.theme=S.theme;
+  localStorage.setItem('mw_theme',S.theme);
+  renderNav();
+}
+
+function Av(user,size){
+  size=size||40;
+  return el('div',{className:'av',style:{width:size+'px',height:size+'px',background:user.color+'22',border:`2px solid ${user.color}`,fontSize:(size*.38)+'px',color:user.color}},user.avatar||user.username[0].toUpperCase());
+}
+
+function dc(x){return JSON.parse(JSON.stringify(x));}
+
+// ── NAV ──────────────────────────────────────────────────────
+function renderNav(){
+  const nav=$('nav');nav.innerHTML='';
+  if(!S.currentUser){nav.style.display='none';return;}
+  nav.style.display='flex';
+  nav.appendChild(el('button',{className:'nav-logo',onClick(){S.viewingUser=S.currentUser.username;S.tab='wall';S.editing=false;renderMain();}},'\u2726 MyWall'));
+  nav.appendChild(el('div',{className:'nav-sp'}));
+  for(const[t,lb] of [['wall','Стена'],['friends','Друзья']]){
+    nav.appendChild(el('button',{className:'nav-tab'+(S.tab===t?' on':''),onClick(){S.tab=t;if(t==='wall')S.viewingUser=S.currentUser.username;S.editing=false;renderMain();}},lb));
+  }
+  nav.appendChild(el('div',{className:'nav-div'}));
+  nav.appendChild(Av(S.currentUser,28));
+  nav.appendChild(el('span',{className:'nav-uname'},S.currentUser.displayName));
+  if(S.currentUser.username==='leha249'){
+    nav.appendChild(el('a',{className:'admin-link',href:'admin.html'},'⚡ Админ'));
+  }
+  nav.appendChild(el('button',{className:'theme-btn',title:'Тема',onClick:toggleTheme},S.theme==='dark'?'☀':'🌙'));
+  nav.appendChild(el('button',{className:'btn',onClick(){S.currentUser=null;S.editing=false;renderMain();}},'Выйти'));
+}
+
+// ── AUTH ─────────────────────────────────────────────────────
+function renderAuth(){
+  const main=$('main');main.innerHTML='';main.style.overflow='auto';
+  const scr=el('div',{id:'auth-scr'});
+  for(const[c,l,t,s] of [['#7c6ff7','22%','28%','360px'],['#ec4899','68%','62%','280px'],['#10b981','52%','12%','200px']]){
+    scr.appendChild(el('div',{className:'blob',style:{background:c,opacity:'.07',width:s,height:s,left:l,top:t}}));
+  }
+  const card=el('div',{className:'card auth-card'});scr.appendChild(card);
+  const logo=el('div',{className:'auth-logo'});
+  logo.appendChild(el('div',{className:'auth-logo-icon'},'\u2726'));
+  logo.appendChild(el('h1',{},'MyWall'));
+  logo.appendChild(el('p',{},'твоя страница, твои правила'));
+  card.appendChild(logo);
+  card.appendChild(el('div',{className:'db-badge '+(USE_FIREBASE?'on':'off')},USE_FIREBASE?'🟢 Firebase подключён — общая база данных':'🟠 localStorage — локальные данные (настрой Firebase для общей БД)'));
+  let mode='login';
+  const tabs=el('div',{className:'auth-tabs'});
+  const t1=el('button',{className:'auth-tab on',onClick(){mode='login';t1.classList.add('on');t2.classList.remove('on');dnw.style.display='none';sbtn.textContent='Войти →';}}, 'Войти');
+  const t2=el('button',{className:'auth-tab',     onClick(){mode='reg';  t2.classList.add('on');t1.classList.remove('on');dnw.style.display='flex';sbtn.textContent='Создать аккаунт →';}}, 'Регистрация');
+  tabs.appendChild(t1);tabs.appendChild(t2);card.appendChild(tabs);
+  const flds=el('div',{style:{display:'flex',flexDirection:'column',gap:'14px'}});
+  const mkF=(lbl,type,ph)=>{const w=el('div',{className:'auth-field'});w.appendChild(el('label',{},lbl));const i=el('input',{className:'auth-inp',type,placeholder:ph});w.appendChild(i);return[w,i];};
+  const [dnw,dnI]=mkF('Имя на сайте','text','Как тебя звать?');dnw.style.display='none';
+  const [uw,usrI]=mkF('Username','text','только латиница');
+  const [pw,passI]=mkF('Пароль','password','••••••••');
+  const errD=el('div',{className:'auth-err'});
+  flds.appendChild(dnw);flds.appendChild(uw);flds.appendChild(pw);flds.appendChild(errD);
+  card.appendChild(flds);
+  const showErr=m=>{errD.style.display='block';errD.textContent=m;};
+  const sbtn=el('button',{className:'auth-btn',onClick:doAuth},'Войти →');
+  card.appendChild(sbtn);
+  passI.addEventListener('keydown',e=>{if(e.key==='Enter')doAuth();});
+  async function doAuth(){
+    errD.style.display='none';
+    const usr=usrI.value.trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+    const pass=passI.value;
+    sbtn.disabled=true;sbtn.textContent='...';
+    if(mode==='login'){
+      const u=await DB.getUser(usr);
+      if(!u){showErr('Пользователь не найден');sbtn.disabled=false;sbtn.textContent='Войти →';return;}
+      if(u.password!==pass){showErr('Неверный пароль');sbtn.disabled=false;sbtn.textContent='Войти →';return;}
+      // Check ban
+      const ban=await DB.getBan(usr);
+      if(ban){showErr('Аккаунт заблокирован: '+ban.reason);sbtn.disabled=false;sbtn.textContent='Войти →';return;}
+      S.currentUser=u;S.viewingUser=usr;S.tab='wall';S.editing=false;
+      renderAll();notify('С возвращением, '+u.displayName+' ✦');
+    } else {
+      const dn=dnI.value.trim();
+      if(!dn||!usr||!pass){showErr('Заполни все поля');sbtn.disabled=false;sbtn.textContent='Создать аккаунт →';return;}
+      if(usr.length<3){showErr('Username минимум 3 символа');sbtn.disabled=false;sbtn.textContent='Создать аккаунт →';return;}
+      const ex=await DB.getUser(usr);
+      if(ex){showErr('Username занят');sbtn.disabled=false;sbtn.textContent='Создать аккаунт →';return;}
+      const colors=['#7c6ff7','#ec4899','#10b981','#3b82f6','#f59e0b','#ef4444'];
+      const color=colors[Math.floor(Math.random()*colors.length)];
+      const nu={username:usr,password:pass,displayName:dn,bio:'',avatar:dn[0].toUpperCase(),color};
+      await DB.setUser(usr,nu);await DB.setWall(usr,[]);await DB.setFriends(usr,[]);
+      S.currentUser=nu;S.viewingUser=usr;S.tab='wall';S.editing=false;
+      renderAll();notify('Добро пожаловать! ✦');
+    }
+  }
+  const demo=el('div',{className:'auth-demo'});
+  demo.innerHTML='Демо: <b>nova · kira · echo</b> — пароль <b>1234</b><br>Админ: <b>leha249</b> — пароль <b>admin123</b>';
+  card.appendChild(demo);
+  main.appendChild(scr);
+}
+
+// ── FRIENDS ──────────────────────────────────────────────────
+async function renderFriends(){
+  const main=$('main');
+  main.innerHTML='<div id="loading"><div class="loader"></div><p>Загружаем...</p></div>';
+  main.style.overflow='auto';
+  const me=S.currentUser.username;
+  const[allUsers,myFriends]=await Promise.all([DB.getAllUsers(),DB.getFriends(me)]);
+  const bans=await DB.getAllBans();
+  const others=allUsers.filter(u=>u.username!==me);
+  main.innerHTML='';
+  const wrap=el('div',{id:'fr-view',style:{animation:'fadeUp .3s ease'}});
+  wrap.appendChild(el('h2',{style:{fontSize:'22px',fontWeight:'800',letterSpacing:'-1px',marginBottom:'22px'}},'Друзья'));
+  const box=el('div',{className:'card',style:{padding:'20px',marginBottom:'28px'}});
+  box.appendChild(el('p',{className:'sec-lbl'},'Все пользователи'));
+  for(const u of others){
+    const row=el('div',{className:'user-row'});
+    row.appendChild(Av(u,36));
+    const info=el('div',{style:{flex:'1'}});
+    const nameRow=el('div',{style:{display:'flex',alignItems:'center'}});
+    nameRow.appendChild(el('span',{style:{fontSize:'14px',fontWeight:'700',color:'var(--text)'}},u.displayName));
+    if(bans[u.username])nameRow.appendChild(el('span',{className:'ban-badge'},'БАН'));
+    info.appendChild(nameRow);
+    info.appendChild(el('div',{style:{fontSize:'11px',color:'var(--text3)',fontFamily:'var(--serif)',fontStyle:'italic'}},'@'+u.username+(u.bio?' · '+u.bio:'')));
+    row.appendChild(info);
+    row.appendChild(el('button',{className:'btn',style:{marginRight:'6px'},onClick(){navigateTo(u.username);}},'🧱 Стена'));
+    const fr=myFriends.includes(u.username);
+    const fb=el('button',{className:'btn '+(fr?'btn-danger':''),style:fr?{}:{color:'var(--accent2)',borderColor:'rgba(124,111,247,.35)',background:'var(--accent-bg)'},
+      async onClick(){fb.disabled=true;fb.textContent='...';
+        const list=await DB.getFriends(me);
+        if(fr){await DB.setFriends(me,list.filter(f=>f!==u.username));notify('Удалён из друзей');}
+        else{if(!list.includes(u.username))list.push(u.username);await DB.setFriends(me,list);notify('Добавлен! ✦');}
+        renderFriends();}},fr?'✕ Удалить':'+ Добавить');
+    row.appendChild(fb);
+    box.appendChild(row);
+  }
+  wrap.appendChild(box);
+  if(myFriends.length>0){
+    wrap.appendChild(el('p',{className:'sec-lbl'},'Мои друзья · '+myFriends.length));
+    const grid=el('div',{className:'fr-grid'});
+    for(const f of myFriends){
+      const u=allUsers.find(x=>x.username===f);if(!u)continue;
+      const card=el('div',{className:'card fr-card',onClick(){navigateTo(f);}});
+      card.style.borderColor='var(--border)';
+      card.addEventListener('mouseenter',()=>card.style.borderColor=u.color+'66');
+      card.addEventListener('mouseleave',()=>card.style.borderColor='var(--border)');
+      const top=el('div',{style:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px'}});
+      top.appendChild(Av(u,38));
+      const ti=el('div');
+      ti.appendChild(el('div',{style:{fontSize:'14px',fontWeight:'700',color:'var(--text)'}},u.displayName));
+      ti.appendChild(el('div',{style:{fontSize:'11px',color:'var(--text3)',fontFamily:'var(--serif)',fontStyle:'italic'}},'@'+u.username));
+      top.appendChild(ti);card.appendChild(top);
+      if(u.bio)card.appendChild(el('p',{style:{fontSize:'11px',color:'var(--text3)',lineHeight:'1.6',marginBottom:'10px'}},u.bio));
+      card.appendChild(el('button',{style:{padding:'5px 14px',borderRadius:'16px',border:`1px solid ${u.color}44`,background:`${u.color}11`,color:u.color,fontSize:'11px',fontWeight:'700'},onClick(e){e.stopPropagation();navigateTo(f);}},'Открыть стену →'));
+      grid.appendChild(card);
+    }
+    wrap.appendChild(grid);
+  }
+  main.appendChild(wrap);
+}
+
+// ── WALL ─────────────────────────────────────────────────────
+let localBlocks=[],wallGen=0;
+
+async function renderWall(){
+  const main=$('main');
+  main.innerHTML='<div id="loading"><div class="loader"></div><p>Загружаем стену...</p></div>';
+  main.style.overflow='hidden';
+  const vu=S.viewingUser;
+  const viewUser=await DB.getUser(vu);
+  if(!viewUser){main.innerHTML='<div style="padding:40px;color:var(--text3)">Пользователь не найден</div>';return;}
+  const isMyWall=S.currentUser&&vu===S.currentUser.username;
+  const[myFriends,wallData]=await Promise.all([DB.getFriends(S.currentUser.username),DB.getWall(vu)]);
+  const ban=await DB.getBan(vu);
+  const warnings=await DB.getWarnings(vu);
+  localBlocks=dc(wallData);wallGen++;const gen=wallGen;
+  main.innerHTML='';main.style.animation='slideIn .35s ease';
+  const view=el('div',{id:'wall-view'});
+  const bar=el('div',{id:'prof-bar'});
+  bar.appendChild(el('div',{style:{position:'absolute',inset:'0',background:`radial-gradient(ellipse at 0 50%, ${viewUser.color}18 0%, transparent 58%)`,pointerEvents:'none'}}));
+  bar.appendChild(Av(viewUser,44));
+  const pinfo=el('div',{style:{flex:'1'}});
+  const nameWrap=el('div',{style:{display:'flex',alignItems:'center',gap:'8px'}});
+  nameWrap.appendChild(el('span',{className:'pb-name'},viewUser.displayName));
+  if(ban)nameWrap.appendChild(el('span',{className:'ban-badge'},'ЗАБЛОКИРОВАН'));
+  if(warnings.length>0)nameWrap.appendChild(el('span',{className:'warn-badge'},'⚠ '+warnings.length));
+  pinfo.appendChild(nameWrap);
+  pinfo.appendChild(el('div',{className:'pb-bio'},'@'+viewUser.username+(viewUser.bio?' · '+viewUser.bio:'')));
+  bar.appendChild(pinfo);
+  // Friend avatars quick-nav
+  const vFriends=await DB.getFriends(vu);
+  const nearby=[...new Set([...myFriends,...vFriends])].filter(f=>f!==vu).slice(0,6);
+  const fnav=el('div',{className:'pb-fnav'});
+  for(const f of nearby){const fu=await DB.getUser(f);if(!fu)continue;const btn=el('button',{className:'pb-fav',title:fu.displayName,style:{borderColor:fu.color+'88',color:fu.color,background:fu.color+'18'},onClick(){navigateTo(f);}},fu.avatar);fnav.appendChild(btn);}
+  bar.appendChild(fnav);
+  if(isMyWall){
+    bar.appendChild(el('button',{className:'btn '+(S.editing?'btn-accent':''),onClick(){S.editing=!S.editing;renderMain();}},S.editing?'✎ Правка вкл':'✎ Изменить'));
+  } else {
+    const fr=myFriends.includes(vu);
+    bar.appendChild(el('button',{className:'btn '+(fr?'':''),style:fr?{color:'var(--text3)'}:{color:'var(--accent2)',borderColor:'rgba(124,111,247,.35)',background:'var(--accent-bg)'},
+      async onClick(){const list=await DB.getFriends(S.currentUser.username);if(fr){await DB.setFriends(S.currentUser.username,list.filter(f=>f!==vu));notify('Удалён из друзей');}else{if(!list.includes(vu))list.push(vu);await DB.setFriends(S.currentUser.username,list);notify('Добавлен! ✦');}renderMain();}},fr?'✓ В друзьях':'+ Добавить в друзья'));
+  }
+  view.appendChild(bar);
+  // Canvas
+  const canvas=el('div',{id:'wall-canvas'});
+  canvas.appendChild(el('div',{className:'wall-bg',style:{background:`radial-gradient(ellipse at 14% 18%, ${viewUser.color}1c 0%, transparent 50%), radial-gradient(ellipse at 86% 82%, ${viewUser.color}0e 0%, transparent 48%), var(--bg)`}}));
+  canvas.appendChild(el('div',{className:'wall-dots'}));
+  const layer=el('div',{id:'blayer'});canvas.appendChild(layer);
+
+  function rBlocks(){if(wallGen!==gen)return;layer.innerHTML='';localBlocks.forEach(b=>layer.appendChild(mkBlock(b)));}
+  function mkBlock(block){
+    const wrap=el('div',{className:'block'+(S.editing&&isMyWall?' b-edit-mode':''),style:{left:block.x+'px',top:block.y+'px',width:block.w+'px',height:block.h+'px'}});
+    const inner=el('div',{className:'block-in'});wrap.appendChild(inner);
+    if(block.type==='text'){
+      inner.classList.add('bt-bg');
+      const s=block.style||{};
+      const ff=s.family==='serif'?'var(--serif)':s.family==='mono'?'var(--mono)':'var(--font)';
+      const col=s.color||'var(--text)';const fs=(s.fontSize||14)+'px';const fst=s.italic?'italic':'normal';
+      if(S.editing&&isMyWall){const ta=el('textarea',{className:'bt-edit',style:{fontSize:fs,fontFamily:ff,fontStyle:fst,color:col}});ta.value=block.content||'';ta.addEventListener('input',()=>{const bi=localBlocks.findIndex(b=>b.id===block.id);if(bi>-1)localBlocks[bi].content=ta.value;});inner.appendChild(ta);}
+      else{inner.appendChild(el('div',{className:'bt-view',style:{fontSize:fs,fontFamily:ff,fontStyle:fst,color:col}},block.content||''));}
+    } else if(block.type==='image'){
+      const img=el('img',{src:block.content||'',style:{width:'100%',height:'100%',objectFit:'cover',borderRadius:'10px'}});
+      img.onerror=()=>{inner.style.cssText='background:var(--bg3);display:flex;align-items:center;justify-content:center;';inner.textContent='⚠ Не загрузилось';inner.style.color='var(--text3)';inner.style.fontSize='12px';};
+      inner.appendChild(img);
+    } else if(block.type==='music'){
+      inner.classList.add('bm-bg');
+      let playing=false;const fill=el('div',{className:'m-fill'});
+      const play=el('button',{className:'m-play',onClick(){playing=!playing;play.classList.toggle('on',playing);play.textContent=playing?'⏸':'▶';fill.style.width=playing?'70%':'0%';fill.style.transition=playing?'width 8s linear':'width .3s';}},'▶');
+      const mi=el('div',{className:'m-info'});
+      mi.appendChild(el('div',{className:'m-title'},block.content.title||'Unknown'));
+      mi.appendChild(el('div',{className:'m-artist'},block.content.artist||''));
+      const mb=el('div',{className:'m-bar'});mb.appendChild(fill);mi.appendChild(mb);
+      const mw=el('div',{className:'music-wrap'});mw.appendChild(play);mw.appendChild(mi);inner.appendChild(mw);
+    }
+    if(S.editing&&isMyWall){
+      const del=el('button',{className:'b-del',onClick(e){e.stopPropagation();localBlocks=localBlocks.filter(b=>b.id!==block.id);rBlocks();}},'✕ УДАЛИТЬ');
+      wrap.appendChild(del);
+      let drag=false,sx=0,sy=0,bx=0,by=0;
+      wrap.addEventListener('mousedown',e=>{if(e.target.tagName==='TEXTAREA'||e.target.tagName==='BUTTON')return;drag=true;e.preventDefault();const b=localBlocks.find(b=>b.id===block.id);if(b){bx=b.x;by=b.y;}sx=e.clientX;sy=e.clientY;wrap.style.cursor='grabbing';wrap.style.zIndex=50;document.body.style.userSelect='none';});
+      window.addEventListener('mousemove',e=>{if(!drag)return;const nx=bx+(e.clientX-sx),ny=by+(e.clientY-sy);const bi=localBlocks.findIndex(b=>b.id===block.id);if(bi>-1){localBlocks[bi].x=nx;localBlocks[bi].y=ny;}wrap.style.left=nx+'px';wrap.style.top=ny+'px';});
+      window.addEventListener('mouseup',()=>{if(!drag)return;drag=false;wrap.style.cursor='grab';wrap.style.zIndex='';document.body.style.userSelect='';});
+      wrap.style.cursor='grab';
+    } else {inner.style.boxShadow='0 4px 20px rgba(0,0,0,.3)';}
+    return wrap;
+  }
+  rBlocks();
+  if(S.editing&&isMyWall){
+    let menuOpen=false;
+    const tb=el('div',{id:'edit-tb'});const menu=el('div',{className:'add-menu'});
+    const addOpt=(lbl,type)=>{menu.appendChild(el('button',{className:'add-item',onClick(){menu.classList.remove('open');menuOpen=false;
+      if(type==='text'){localBlocks.push({id:'b'+Date.now(),type:'text',x:50+Math.random()*180,y:50+Math.random()*180,w:260,h:115,content:'Твой текст...',style:{fontSize:14,color:'',italic:false}});rBlocks();}
+      if(type==='image'){const u=prompt('URL изображения:');if(u){localBlocks.push({id:'b'+Date.now(),type:'image',x:50+Math.random()*150,y:50+Math.random()*150,w:240,h:180,content:u});rBlocks();}}
+      if(type==='music'){const t=prompt('Название:')||'Unknown';const a=prompt('Исполнитель:')||'Unknown';localBlocks.push({id:'b'+Date.now(),type:'music',x:50+Math.random()*150,y:50+Math.random()*150,w:280,h:78,content:{title:t,artist:a}});rBlocks();}
+    }},lbl));};
+    addOpt('📝 Текст','text');addOpt('🖼 Изображение','image');addOpt('🎵 Музыка','music');
+    const addBtn=el('button',{className:'tb-pill tb-add',onClick(){menuOpen=!menuOpen;menu.classList.toggle('open',menuOpen);}},'\u002B Добавить блок');
+    const saveBtn=el('button',{className:'tb-pill tb-save',async onClick(){saveBtn.disabled=true;saveBtn.textContent='Сохраняем...';await DB.setWall(vu,dc(localBlocks));S.editing=false;renderMain();notify('Стена сохранена ✓');}},'\u2713 Сохранить');
+    const aw=el('div',{style:{position:'relative'}});aw.appendChild(menu);aw.appendChild(addBtn);
+    tb.appendChild(aw);tb.appendChild(saveBtn);canvas.appendChild(tb);
+    document.addEventListener('click',e=>{if(!aw.contains(e.target)){menu.classList.remove('open');menuOpen=false;}});
+  }
+  view.appendChild(canvas);main.appendChild(view);
+}
+
+function navigateTo(username){
+  if(S.viewingUser===username&&S.tab==='wall')return;
+  S.tab='wall';S.editing=false;
+  const main=$('main');
+  main.style.opacity='0';main.style.transform='translateX(28px)';main.style.transition='opacity .28s ease,transform .28s ease';
+  setTimeout(()=>{main.style.transition='';main.style.opacity='1';main.style.transform='';S.viewingUser=username;renderMain();},280);
+}
+
+function renderAll(){renderNav();renderMain();}
+function renderMain(){
+  const main=$('main');main.style.transition='';main.style.opacity='1';main.style.transform='';
+  renderNav();
+  if(!S.currentUser){renderAuth();return;}
+  if(S.tab==='friends'){renderFriends();return;}
+  if(S.viewingUser){renderWall();return;}
+  S.viewingUser=S.currentUser.username;renderWall();
+}
+
+function init(){renderAll();}
+</script>
+</body>
+</html>

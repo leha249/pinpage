@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyWall — Админ ⚡</title>
+<script src="firebase.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Syne+Mono&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090e;--bg2:#0d1018;--bg3:#131720;--bg4:#1a1f2e;
+  --surface:rgba(13,16,24,0.9);
+  --border:rgba(245,158,11,0.12);--border2:rgba(245,158,11,0.22);
+  --text:#f1f0e8;--text2:#9a9480;--text3:#4a4535;
+  --gold:#f59e0b;--gold2:#fbbf24;--gold-bg:rgba(245,158,11,0.1);
+  --danger:#ef4444;--danger-bg:rgba(239,68,68,0.1);
+  --warn:#f59e0b;--warn-bg:rgba(245,158,11,0.1);
+  --ok:#10b981;--ok-bg:rgba(16,185,129,0.1);
+  --accent:#7c6ff7;
+  --font:'Syne',system-ui,sans-serif;
+  --serif:'Crimson Pro',Georgia,serif;
+  --mono:'Syne Mono',monospace;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+input,textarea,button{font-family:inherit}
+input,textarea{outline:none}
+button{cursor:pointer;transition:all .18s}
+a{color:var(--gold);text-decoration:none}
+a:hover{color:var(--gold2)}
+
+@keyframes fadeDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeUp  {from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)}}
+@keyframes notif   {from{opacity:0;transform:translateX(-50%) scale(.9)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+@keyframes spin    {to{transform:rotate(360deg)}}
+@keyframes pulse   {0%,100%{opacity:1}50%{opacity:.4}}
+
+/* LAYOUT */
+#app{display:flex;height:100vh;overflow:hidden}
+#sidebar{width:230px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#content{flex:1;overflow:auto;background:var(--bg)}
+
+/* SIDEBAR */
+.sb-header{padding:20px 18px 14px;border-bottom:1px solid var(--border)}
+.sb-logo{font-size:18px;font-weight:800;color:var(--gold);letter-spacing:-1px;display:block;margin-bottom:2px}
+.sb-sub{font-size:11px;color:var(--text3);font-family:var(--serif);font-style:italic}
+.sb-admin{margin-top:12px;display:flex;align-items:center;gap:8px}
+.sb-admin-name{font-size:13px;font-weight:700;color:var(--text)}
+.sb-badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:700;background:var(--gold-bg);color:var(--gold);border:1px solid rgba(245,158,11,.3);letter-spacing:.4px}
+.sb-nav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:2px;overflow:auto}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;border:none;background:transparent;color:var(--text2);font-size:13px;font-weight:500;width:100%;text-align:left;cursor:pointer;transition:all .18s}
+.sb-item:hover{background:var(--gold-bg);color:var(--gold)}
+.sb-item.on{background:var(--gold-bg);color:var(--gold);font-weight:700}
+.sb-item .icon{font-size:16px;width:22px;flex-shrink:0;text-align:center}
+.sb-item .badge-count{margin-left:auto;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.sb-footer{padding:14px 18px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+.sb-footer a{font-size:12px}
+
+/* CONTENT */
+.page{padding:28px;animation:fadeUp .3s ease;min-height:100%}
+.page-title{font-size:24px;font-weight:800;letter-spacing:-1px;margin-bottom:6px;color:var(--text)}
+.page-sub{font-size:13px;color:var(--text3);margin-bottom:24px;font-family:var(--serif);font-style:italic}
+
+/* STATS CARDS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:28px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,currentColor 0%,transparent 80%);opacity:.04;pointer-events:none}
+.stat-icon{font-size:24px;margin-bottom:8px}
+.stat-val{font-size:28px;font-weight:800;letter-spacing:-1px;color:var(--text)}
+.stat-lbl{font-size:11px;color:var(--text3);margin-top:2px;letter-spacing:.5px;text-transform:uppercase}
+
+/* USER TABLE */
+.search-bar{display:flex;gap:10px;margin-bottom:16px}
+.search-inp{flex:1;padding:9px 14px;border-radius:9px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px}
+.search-inp::placeholder{color:var(--text3)}
+.filter-btn{padding:8px 14px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;font-weight:600}
+.filter-btn.on{border-color:rgba(239,68,68,.4);color:#f87171;background:var(--danger-bg)}
+.user-table{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.ut-head{display:grid;grid-template-columns:2fr 2fr 1fr 1fr 1.8fr;gap:0;background:var(--bg3);padding:10px 16px;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+.ut-row{display:grid;grid-template-columns:2fr 2fr 1fr 1fr 1.8fr;gap:0;padding:12px 16px;border-bottom:1px solid var(--border);align-items:center;transition:background .15s}
+.ut-row:last-child{border-bottom:none}
+.ut-row:hover{background:rgba(245,158,11,.04)}
+.ut-row.banned{background:rgba(239,68,68,.04)}
+.ut-name{display:flex;align-items:center;gap:8px}
+.av-sm{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;font-family:var(--serif)}
+.ut-username{font-size:12px;color:var(--text3);font-family:var(--mono)}
+.pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:.3px}
+.pill-ban{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.pill-ok{background:var(--ok-bg);color:var(--ok);border:1px solid rgba(16,185,129,.3)}
+.pill-warn{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(245,158,11,.3)}
+.pill-admin{background:var(--gold-bg);color:var(--gold);border:1px solid rgba(245,158,11,.3)}
+.action-btns{display:flex;gap:5px;flex-wrap:wrap}
+.ab{padding:3px 9px;border-radius:8px;font-size:11px;font-weight:600;border:1px solid;letter-spacing:.2px}
+.ab-view{border-color:rgba(124,111,247,.3);color:var(--accent);background:rgba(124,111,247,.08)}
+.ab-view:hover{background:rgba(124,111,247,.18)}
+.ab-warn{border-color:rgba(245,158,11,.3);color:var(--warn);background:var(--warn-bg)}
+.ab-warn:hover{background:rgba(245,158,11,.2)}
+.ab-ban{border-color:rgba(239,68,68,.3);color:var(--danger);background:var(--danger-bg)}
+.ab-ban:hover{background:rgba(239,68,68,.2)}
+.ab-unban{border-color:rgba(16,185,129,.3);color:var(--ok);background:var(--ok-bg)}
+.ab-unban:hover{background:rgba(16,185,129,.2)}
+.ab-del{border-color:rgba(239,68,68,.5);color:#f87171;background:rgba(239,68,68,.12)}
+.ab-del:hover{background:rgba(239,68,68,.25)}
+.ab-edit{border-color:var(--border2);color:var(--text2);background:transparent}
+.ab-edit:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-bg)}
+
+/* MODAL */
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+#modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:32px;max-width:480px;width:calc(100vw - 40px);max-height:80vh;overflow-y:auto;animation:fadeDown .25s ease;position:relative}
+.modal h3{font-size:18px;font-weight:800;color:var(--text);margin-bottom:16px;letter-spacing:-.5px}
+.modal-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.modal-field label{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.7px;text-transform:uppercase}
+.modal-inp{width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px}
+.modal-inp:focus{border-color:var(--gold)!important;box-shadow:0 0 0 3px rgba(245,158,11,.14)}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+.modal-btn{padding:8px 20px;border-radius:9px;font-size:13px;font-weight:700;border:none;cursor:pointer}
+.modal-btn-cancel{background:var(--bg4);color:var(--text2)}
+.modal-btn-confirm{background:var(--gold);color:#000}
+.modal-btn-danger{background:var(--danger);color:#fff}
+.modal-close{position:absolute;top:14px;right:16px;background:transparent;border:none;color:var(--text3);font-size:18px;cursor:pointer}
+.modal-close:hover{color:var(--text)}
+.warn-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.warn-entry{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-size:12px}
+.warn-entry .we-text{color:var(--text);margin-bottom:4px;font-weight:500}
+.warn-entry .we-meta{color:var(--text3);font-family:var(--mono);font-size:10px}
+.profile-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* WARN HISTORY PAGE */
+.warn-item{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.warn-item-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.warn-item-body{font-size:12px;color:var(--text2);line-height:1.5}
+
+/* LOADING */
+.loader{width:22px;height:22px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
+.loading-inline{display:flex;align-items:center;justify-content:center;padding:60px;gap:14px;color:var(--text3);font-size:13px}
+
+/* NOTIF */
+#notif{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;padding:9px 24px;border-radius:24px;font-size:12px;font-weight:600;letter-spacing:.3px;display:none;white-space:nowrap;animation:notif .3s ease;backdrop-filter:blur(20px)}
+
+/* ACCESS DENIED */
+#access-denied{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;color:var(--text3)}
+#access-denied h1{font-size:32px;font-weight:800;color:var(--danger)}
+.login-form{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:32px;width:340px;margin-top:16px}
+.login-form input{width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;margin-bottom:10px}
+.login-form input:focus{border-color:var(--gold)!important}
+.login-form button{width:100%;padding:11px;border-radius:9px;border:none;background:var(--gold);color:#000;font-size:14px;font-weight:700;cursor:pointer}
+.login-err{color:#f87171;font-size:12px;text-align:center;margin-top:8px;display:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="notif"></div>
+<div id="modal-overlay">
+  <div class="modal" id="modal-box">
+    <button class="modal-close" id="modal-close-btn">✕</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+(function waitDB(){ if(window.DB) initAdmin(); else setTimeout(waitDB,30); })();
+
+const ADMIN_USER = 'leha249';
+let adminUser = null;
+let currentPage = 'dashboard';
+let allUsers = [], allBans = {}, allWarnings = {};
+
+function $$(id){return document.getElementById(id);}
+function el(tag,p,...kids){
+  const e=document.createElement(tag);
+  for(const[k,v] of Object.entries(p||{})){
+    if(k==='style'&&typeof v==='object')Object.assign(e.style,v);
+    else if(k.startsWith('on'))e.addEventListener(k.slice(2).toLowerCase(),v);
+    else if(k==='html')e.innerHTML=v;
+    else e[k]=v;
+  }
+  for(const c of kids){if(c==null)continue;e.appendChild(typeof c==='string'?document.createTextNode(c):c);}
+  return e;
+}
+
+let _nt;
+function notify(msg,type='ok'){
+  const n=$$('notif');n.textContent=msg;n.style.display='block';
+  n.style.background=type==='ok'?'rgba(245,158,11,.18)':type==='err'?'rgba(239,68,68,.18)':'rgba(16,185,129,.18)';
+  n.style.border=`1px solid ${type==='ok'?'rgba(245,158,11,.4)':type==='err'?'rgba(239,68,68,.4)':'rgba(16,185,129,.4)'}`;
+  n.style.color=type==='ok'?'#fbbf24':type==='err'?'#f87171':'#34d399';
+  clearTimeout(_nt);_nt=setTimeout(()=>n.style.display='none',3000);
+}
+
+function Av(user,size){
+  size=size||40;
+  return el('div',{className:'av-sm',style:{width:size+'px',height:size+'px',background:user.color+'22',border:`1.5px solid ${user.color}`,color:user.color,fontSize:(size*.38)+'px'}},user.avatar||user.username[0].toUpperCase());
+}
+
+// ── MODAL ─────────────────────────────────────────────────────
+function openModal(render){ $$('modal-overlay').classList.add('open'); render($$('modal-content')); }
+function closeModal(){ $$('modal-overlay').classList.remove('open'); $$('modal-content').innerHTML=''; }
+$$('modal-close-btn').addEventListener('click',closeModal);
+$$('modal-overlay').addEventListener('click',e=>{ if(e.target===$$('modal-overlay'))closeModal(); });
+
+// ── AUTH ──────────────────────────────────────────────────────
+function renderAccessDenied(){
+  const app=$$('app');app.innerHTML='';
+  const div=el('div',{id:'access-denied'});
+  div.appendChild(el('div',{style:{fontSize:'48px'}},'🔒'));
+  div.appendChild(el('h1',{},'Доступ запрещён'));
+  div.appendChild(el('p',{},'Эта страница только для администратора'));
+  const form=el('div',{className:'login-form'});
+  const passI=el('input',{type:'password',placeholder:'Пароль администратора'});
+  const err=el('div',{className:'login-err'},'Неверный пароль');
+  const btn=el('button',{async onClick(){
+    const u=await DB.getUser(ADMIN_USER);
+    if(u&&u.password===passI.value){ adminUser=u; renderAdminPanel(); notify('Добро пожаловать, leha249 ⚡'); }
+    else{err.style.display='block';}
+  }},'Войти как leha249');
+  passI.addEventListener('keydown',e=>{if(e.key==='Enter')btn.click();});
+  form.appendChild(el('p',{style:{fontSize:'13px',color:'var(--text3)',marginBottom:'14px',fontFamily:"var(--serif)",fontStyle:'italic'}},'Вход для leha249'));
+  form.appendChild(passI);form.appendChild(btn);form.appendChild(err);
+  div.appendChild(form);
+  div.appendChild(el('a',{href:'index.html',style:{fontSize:'12px',color:'var(--text3)',marginTop:'16px'}},'← Вернуться на MyWall'));
+  app.appendChild(div);
+}
+
+// ── LOAD DATA ─────────────────────────────────────────────────
+async function loadData(){
+  [allUsers, allBans] = await Promise.all([DB.getAllUsers(), DB.getAllBans()]);
+  allWarnings = {};
+  await Promise.all(allUsers.map(async u=>{ allWarnings[u.username] = await DB.getWarnings(u.username); }));
+}
+
+// ── ADMIN PANEL ───────────────────────────────────────────────
+async function renderAdminPanel(){
+  const app=$$('app');
+  app.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;gap:12px;color:var(--text3)"><div class="loader"></div><span>Загружаем панель...</span></div>';
+  await loadData();
+  app.innerHTML='';
+  app.style.cssText='display:flex;height:100vh;overflow:hidden';
+
+  // SIDEBAR
+  const sb=el('div',{id:'sidebar'});
+  const sbh=el('div',{className:'sb-header'});
+  sbh.appendChild(el('span',{className:'sb-logo'},'⚡ MyWall Admin'));
+  sbh.appendChild(el('span',{className:'sb-sub'},'панель управления'));
+  const sbadmin=el('div',{className:'sb-admin'});
+  sbadmin.appendChild(Av(adminUser,30));
+  const san=el('div');
+  san.appendChild(el('div',{className:'sb-admin-name'},adminUser.displayName));
+  san.appendChild(el('span',{className:'sb-badge'},'ADMIN'));
+  sbadmin.appendChild(san);sbh.appendChild(sbadmin);sb.appendChild(sbh);
+
+  const nav=el('div',{className:'sb-nav'});
+  const pages=[
+    ['dashboard','📊','Панель',null],
+    ['users','👤','Пользователи',null],
+    ['bans','🚫','Баны',Object.keys(allBans).length||null],
+    ['warnings','⚠','Предупреждения',Object.values(allWarnings).flat().length||null],
+    ['search','🔍','Поиск аккаунтов',null],
+  ];
+  const navBtns={};
+  for(const[id,icon,label,count] of pages){
+    const btn=el('button',{className:'sb-item'+(currentPage===id?' on':''),onClick(){
+      currentPage=id;
+      for(const[k,b] of Object.entries(navBtns))b.classList.toggle('on',k===id);
+      renderPage();
+    }});
+    btn.appendChild(el('span',{className:'icon'},icon));
+    btn.appendChild(el('span',{},label));
+    if(count){btn.appendChild(el('span',{className:'badge-count'},count));}
+    navBtns[id]=btn;nav.appendChild(btn);
+  }
+  sb.appendChild(nav);
+  const sbf=el('div',{className:'sb-footer'});
+  sbf.appendChild(el('a',{href:'index.html'},'← Вернуться на сайт'));
+  sb.appendChild(sbf);
+  app.appendChild(sb);
+
+  // CONTENT
+  const content=el('div',{id:'content'});
+  app.appendChild(content);
+
+  async function renderPage(){
+    content.innerHTML='<div class="loading-inline"><div class="loader"></div>Загружаем...</div>';
+    await loadData();
+    content.innerHTML='';
+    const page=el('div',{className:'page'});
+
+    if(currentPage==='dashboard') renderDashboard(page);
+    else if(currentPage==='users') renderUsers(page,allUsers,'');
+    else if(currentPage==='bans')  renderBans(page);
+    else if(currentPage==='warnings') renderWarnings(page);
+    else if(currentPage==='search') renderSearch(page);
+
+    content.appendChild(page);
+  }
+  renderPage();
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────
+function renderDashboard(page){
+  page.appendChild(el('div',{className:'page-title'},'Панель управления'));
+  page.appendChild(el('div',{className:'page-sub'},'Обзор активности MyWall'));
+  const grid=el('div',{className:'stats-grid'});
+  const banCount=Object.keys(allBans).length;
+  const warnCount=Object.values(allWarnings).flat().length;
+  const stats=[
+    {icon:'👤',val:allUsers.length,lbl:'Пользователей',color:'var(--accent)'},
+    {icon:'🚫',val:banCount,lbl:'Заблокировано',color:'var(--danger)'},
+    {icon:'⚠',val:warnCount,lbl:'Предупреждений',color:'var(--warn)'},
+    {icon:'✅',val:allUsers.length-banCount,lbl:'Активных',color:'var(--ok)'},
+  ];
+  for(const s of stats){
+    const card=el('div',{className:'stat-card',style:{color:s.color}});
+    card.appendChild(el('div',{className:'stat-icon'},s.icon));
+    card.appendChild(el('div',{className:'stat-val'},String(s.val)));
+    card.appendChild(el('div',{className:'stat-lbl'},s.lbl));
+    grid.appendChild(card);
+  }
+  page.appendChild(grid);
+
+  // Recent users
+  page.appendChild(el('h3',{style:{fontSize:'14px',fontWeight:'700',color:'var(--text2)',letterSpacing:'.5px',textTransform:'uppercase',marginBottom:'12px'}},'Все пользователи'));
+  renderUsersTable(page, allUsers.filter(u=>u.username!==ADMIN_USER).slice(0,8), true);
+}
+
+// ── USERS PAGE ────────────────────────────────────────────────
+function renderUsers(page, users, query){
+  page.appendChild(el('div',{className:'page-title'},'Пользователи'));
+  page.appendChild(el('div',{className:'page-sub'},`${users.length} аккаунтов в системе`));
+  const sb=el('div',{className:'search-bar'});
+  const inp=el('input',{className:'search-inp',placeholder:'🔍 Поиск по имени или username...',value:query});
+  let showBanned=false;
+  const fBtn=el('button',{className:'filter-btn',onClick(){showBanned=!showBanned;fBtn.classList.toggle('on',showBanned);const filtered=allUsers.filter(u=>u.username!==ADMIN_USER&&(!showBanned||allBans[u.username])&&(!inp.value||(u.displayName+u.username).toLowerCase().includes(inp.value.toLowerCase())));tbl.innerHTML='';renderUsersTable(tbl,filtered,false);}},'\uD83D\uDEAB Только забаненные');
+  inp.addEventListener('input',()=>{const q=inp.value.toLowerCase();const filtered=allUsers.filter(u=>u.username!==ADMIN_USER&&(u.displayName+u.username).toLowerCase().includes(q)&&(!showBanned||allBans[u.username]));tbl.innerHTML='';renderUsersTable(tbl,filtered,false);});
+  sb.appendChild(inp);sb.appendChild(fBtn);page.appendChild(sb);
+  const tbl=el('div');
+  renderUsersTable(tbl,allUsers.filter(u=>u.username!==ADMIN_USER),false);
+  page.appendChild(tbl);
+}
+
+function renderUsersTable(container, users, compact){
+  if(!users.length){container.appendChild(el('div',{style:{padding:'30px',textAlign:'center',color:'var(--text3)'}},'Нет пользователей'));return;}
+  const table=el('div',{className:'user-table'});
+  if(!compact){
+    const head=el('div',{className:'ut-head'});
+    for(const lbl of['Пользователь','Имя / Bio','Статус','Варн','Действия'])head.appendChild(el('div',{},lbl));
+    table.appendChild(head);
+  }
+  for(const u of users){
+    const banned=!!allBans[u.username];
+    const warns=(allWarnings[u.username]||[]).length;
+    const row=el('div',{className:'ut-row'+(banned?' banned':'')});
+    // Name
+    const nameCell=el('div',{className:'ut-name'});
+    nameCell.appendChild(Av(u,28));
+    const ni=el('div');
+    ni.appendChild(el('div',{style:{fontSize:'13px',fontWeight:'700',color:'var(--text)'}},u.displayName));
+    ni.appendChild(el('div',{className:'ut-username'},'@'+u.username));
+    nameCell.appendChild(ni);row.appendChild(nameCell);
+    // Bio
+    row.appendChild(el('div',{style:{fontSize:'12px',color:'var(--text3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontFamily:'var(--serif)',fontStyle:'italic'}},u.bio||'—'));
+    // Status
+    const statusCell=el('div');
+    statusCell.appendChild(el('span',{className:'pill '+(banned?'pill-ban':'pill-ok')},banned?'БАН':'✓ OK'));
+    row.appendChild(statusCell);
+    // Warns
+    row.appendChild(el('div',{},warns>0?el('span',{className:'pill pill-warn'},'⚠ '+warns):el('span',{style:{color:'var(--text3)',fontSize:'12px'}},'—')));
+    // Actions
+    const acts=el('div',{className:'action-btns'});
+    acts.appendChild(el('button',{className:'ab ab-view',onClick(){window.open('index.html#'+u.username,'_blank');}},'\uD83E\uDDE1 Стена'));
+    acts.appendChild(el('button',{className:'ab ab-edit',onClick(){openEditModal(u);}},'\u270E Ред'));
+    acts.appendChild(el('button',{className:'ab ab-warn',onClick(){openWarnModal(u);}},'\u26A0 Варн'));
+    if(banned){acts.appendChild(el('button',{className:'ab ab-unban',async onClick(){await DB.removeBan(u.username);notify('Бан снят с @'+u.username,'green');await loadData();container.innerHTML='';renderUsersTable(container,allUsers.filter(x=>x.username!==ADMIN_USER),compact);}},'\u2713 Разбан'));}
+    else{acts.appendChild(el('button',{className:'ab ab-ban',onClick(){openBanModal(u);}},'\uD83D\uDEAB Бан'));}
+    acts.appendChild(el('button',{className:'ab ab-del',onClick(){openDeleteModal(u);}},'\uD83D\uDDD1 Удалить'));
+    row.appendChild(acts);
+    table.appendChild(row);
+  }
+  container.appendChild(table);
+}
+
+// ── BANS PAGE ─────────────────────────────────────────────────
+function renderBans(page){
+  page.appendChild(el('div',{className:'page-title'},'Заблокированные'));
+  page.appendChild(el('div',{className:'page-sub'},'Пользователи с активным баном'));
+  const banned=allUsers.filter(u=>allBans[u.username]);
+  if(!banned.length){page.appendChild(el('div',{style:{padding:'40px',textAlign:'center',color:'var(--text3)',fontSize:'14px'}},'Нет заблокированных пользователей ✓'));return;}
+  renderUsersTable(page,banned,false);
+}
+
+// ── WARNINGS PAGE ──────────────────────────────────────────────
+function renderWarnings(page){
+  page.appendChild(el('div',{className:'page-title'},'Предупреждения'));
+  page.appendChild(el('div',{className:'page-sub'},'История всех предупреждений'));
+  let hasAny=false;
+  for(const u of allUsers){
+    const warns=allWarnings[u.username]||[];
+    if(!warns.length)continue;
+    hasAny=true;
+    const item=el('div',{className:'warn-item'});
+    const head=el('div',{className:'warn-item-head'});
+    head.appendChild(Av(u,28));
+    const hi=el('div');
+    hi.appendChild(el('div',{style:{fontSize:'13px',fontWeight:'700',color:'var(--text)'}},u.displayName+' (@'+u.username+')'));
+    hi.appendChild(el('div',{style:{fontSize:'11px',color:'var(--text3)'}},'Предупреждений: '+warns.length));
+    head.appendChild(hi);
+    const clearBtn=el('button',{className:'ab ab-unban',style:{marginLeft:'auto'},async onClick(){
+      await DB.clearWarnings(u.username);notify('Предупреждения сброшены','green');await loadData();item.remove();
+    }},'Сбросить');
+    head.appendChild(clearBtn);
+    item.appendChild(head);
+    const list=el('div',{className:'warn-list'});
+    for(const w of warns){
+      const we=el('div',{className:'warn-entry'});
+      we.appendChild(el('div',{className:'we-text'},w.text));
+      we.appendChild(el('div',{className:'we-meta'},new Date(w.at).toLocaleString('ru')));
+      list.appendChild(we);
+    }
+    item.appendChild(list);
+    page.appendChild(item);
+  }
+  if(!hasAny)page.appendChild(el('div',{style:{padding:'40px',textAlign:'center',color:'var(--text3)'}},'Предупреждений нет ✓'));
+}
+
+// ── SEARCH PAGE ───────────────────────────────────────────────
+function renderSearch(page){
+  page.appendChild(el('div',{className:'page-title'},'Поиск аккаунтов'));
+  page.appendChild(el('div',{className:'page-sub'},'Найди любой аккаунт и управляй им'));
+  const sb=el('div',{className:'search-bar'});
+  const inp=el('input',{className:'search-inp',placeholder:'Введи имя, username или часть bio...'});
+  const tbl=el('div',{style:{marginTop:'16px'}});
+  renderUsersTable(tbl,allUsers.filter(u=>u.username!==ADMIN_USER),false);
+  inp.addEventListener('input',()=>{
+    const q=inp.value.toLowerCase();
+    const filtered=allUsers.filter(u=>u.username!==ADMIN_USER&&(u.displayName+u.username+u.bio).toLowerCase().includes(q));
+    tbl.innerHTML='';renderUsersTable(tbl,filtered,false);
+  });
+  sb.appendChild(inp);page.appendChild(sb);page.appendChild(tbl);
+}
+
+// ── MODALS ────────────────────────────────────────────────────
+function openBanModal(u){
+  openModal(mc=>{
+    mc.appendChild(el('h3',{},'🚫 Заблокировать @'+u.username));
+    mc.appendChild(el('p',{style:{color:'var(--text3)',fontSize:'12px',marginBottom:'16px',fontFamily:'var(--serif)',fontStyle:'italic'}},'Пользователь не сможет войти до снятия бана'));
+    const rf=el('div',{className:'modal-field'});
+    rf.appendChild(el('label',{},'Причина бана'));
+    const ri=el('input',{className:'modal-inp',placeholder:'Нарушение правил...'});
+    rf.appendChild(ri);mc.appendChild(rf);
+    const btns=el('div',{className:'modal-btns'});
+    btns.appendChild(el('button',{className:'modal-btn modal-btn-cancel',onClick:closeModal},'Отмена'));
+    btns.appendChild(el('button',{className:'modal-btn modal-btn-danger',async onClick(){
+      const reason=ri.value.trim()||'Нарушение правил';
+      await DB.setBan(u.username,reason);
+      notify('@'+u.username+' заблокирован','err');
+      closeModal();await loadData();renderAdminPanel();
+    }},'Заблокировать'));
+    mc.appendChild(btns);
+  });
+}
+
+function openWarnModal(u){
+  openModal(async mc=>{
+    const warns=await DB.getWarnings(u.username);
+    mc.appendChild(el('h3',{},'⚠ Предупреждение: @'+u.username));
+    if(warns.length){
+      const wl=el('div',{className:'warn-list',style:{marginBottom:'16px'}});
+      warns.forEach(w=>{const we=el('div',{className:'warn-entry'});we.appendChild(el('div',{className:'we-text'},w.text));we.appendChild(el('div',{className:'we-meta'},new Date(w.at).toLocaleString('ru')));wl.appendChild(we);});
+      mc.appendChild(el('p',{style:{fontSize:'11px',color:'var(--text3)',marginBottom:'8px'}},'Предыдущие предупреждения:'));
+      mc.appendChild(wl);
+    }
+    const tf=el('div',{className:'modal-field'});
+    tf.appendChild(el('label',{},'Текст предупреждения'));
+    const ti=el('textarea',{className:'modal-inp',style:{height:'80px',resize:'vertical'},placeholder:'Опиши нарушение...'});
+    tf.appendChild(ti);mc.appendChild(tf);
+    const btns=el('div',{className:'modal-btns'});
+    btns.appendChild(el('button',{className:'modal-btn modal-btn-cancel',onClick:closeModal},'Отмена'));
+    if(warns.length)btns.appendChild(el('button',{className:'modal-btn',style:{background:'var(--bg4)',color:'var(--text3)'},async onClick(){await DB.clearWarnings(u.username);notify('Предупреждения сброшены','green');closeModal();await loadData();}},'Сбросить все'));
+    btns.appendChild(el('button',{className:'modal-btn modal-btn-confirm',async onClick(){
+      const text=ti.value.trim();if(!text)return;
+      await DB.addWarning(u.username,text);
+      notify('Предупреждение отправлено @'+u.username);
+      closeModal();await loadData();
+    }},'Отправить'));
+    mc.appendChild(btns);
+  });
+}
+
+function openDeleteModal(u){
+  openModal(mc=>{
+    mc.appendChild(el('h3',{style:{color:'var(--danger)'}},'🗑 Удалить аккаунт'));
+    mc.appendChild(el('p',{style:{color:'var(--text2)',fontSize:'13px',marginBottom:'8px'}},'Ты собираешься безвозвратно удалить:'));
+    const ua=el('div',{style:{display:'flex',alignItems:'center',gap:'10px',background:'var(--bg3)',padding:'12px',borderRadius:'9px',margin:'12px 0'}});
+    ua.appendChild(Av(u,36));
+    const ui=el('div');ui.appendChild(el('div',{style:{fontWeight:'700',color:'var(--text)'}},u.displayName));ui.appendChild(el('div',{style:{fontSize:'12px',color:'var(--text3)'}},'@'+u.username));
+    ua.appendChild(ui);mc.appendChild(ua);
+    mc.appendChild(el('p',{style:{color:'var(--danger)',fontSize:'12px'}},'⚠ Все данные, стена и друзья будут удалены. Это действие нельзя отменить.'));
+    const btns=el('div',{className:'modal-btns',style:{marginTop:'20px'}});
+    btns.appendChild(el('button',{className:'modal-btn modal-btn-cancel',onClick:closeModal},'Отмена'));
+    btns.appendChild(el('button',{className:'modal-btn modal-btn-danger',async onClick(){
+      await DB.deleteUser(u.username);
+      notify('@'+u.username+' удалён','err');
+      closeModal();await loadData();renderAdminPanel();
+    }},'Удалить навсегда'));
+    mc.appendChild(btns);
+  });
+}
+
+function openEditModal(u){
+  openModal(mc=>{
+    mc.appendChild(el('h3',{},'✎ Редактировать @'+u.username));
+    const grid=el('div',{className:'profile-edit-grid'});
+    const mkF=(lbl,key,type)=>{const f=el('div',{className:'modal-field'});f.appendChild(el('label',{},lbl));const i=el('input',{className:'modal-inp',type:type||'text',value:u[key]||''});i.dataset.key=key;f.appendChild(i);grid.appendChild(f);return i;};
+    const dnI=mkF('Отображаемое имя','displayName');
+    const avI=mkF('Аватар (1 символ)','avatar');
+    const clrI=mkF('Цвет (hex)','color');
+    const pf=el('div',{className:'modal-field',style:{gridColumn:'1/-1'}});
+    pf.appendChild(el('label',{},'Пароль (оставь пустым чтобы не менять)'));
+    const pi=el('input',{className:'modal-inp',type:'password',placeholder:'Новый пароль'});
+    pf.appendChild(pi);grid.appendChild(pf);
+    const bf=el('div',{className:'modal-field',style:{gridColumn:'1/-1'}});
+    bf.appendChild(el('label',{},'Bio'));
+    const bi=el('input',{className:'modal-inp',type:'text',value:u.bio||''});
+    bf.appendChild(bi);grid.appendChild(bf);
+    mc.appendChild(grid);
+    const btns=el('div',{className:'modal-btns'});
+    btns.appendChild(el('button',{className:'modal-btn modal-btn-cancel',onClick:closeModal},'Отмена'));
+    btns.appendChild(el('button',{className:'modal-btn modal-btn-confirm',async onClick(){
+      const updated={...u,displayName:dnI.value.trim()||u.displayName,avatar:avI.value.trim()[0]||u.avatar,color:clrI.value.trim()||u.color,bio:bi.value.trim()};
+      if(pi.value)updated.password=pi.value;
+      await DB.setUser(u.username,updated);
+      notify('Профиль @'+u.username+' обновлён');
+      closeModal();await loadData();renderAdminPanel();
+    }},'Сохранить'));
+    mc.appendChild(btns);
+  });
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+async function initAdmin(){
+  // Check if already logged in via sessionStorage
+  const cached=sessionStorage.getItem('mw_admin');
+  if(cached==='leha249'){
+    const u=await DB.getUser(ADMIN_USER);
+    if(u){adminUser=u;renderAdminPanel();return;}
+  }
+  renderAccessDenied();
+}
+
+// Patch renderAdminPanel to cache session
+const _origRender=renderAdminPanel;
+// eslint-disable-next-line no-global-assign
+window.renderAdminPanel=async function(){
+  sessionStorage.setItem('mw_admin','leha249');
+  await _origRender();
+};
+</script>
+</body>
+</html>
