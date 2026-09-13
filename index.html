@@ -311,12 +311,6 @@ img { display: block; }
   #wall-canvas { overflow:auto; -webkit-overflow-scrolling:touch; }
   #blocks-layer { min-width:700px; min-height:600px; }
 
-  /* Friends */
-  #friends-view { padding:14px; }
-  .fr-grid { grid-template-columns:1fr; }
-  .user-row { flex-wrap:wrap; gap:8px; padding:10px 0; }
-  .user-row .btn { font-size:10px; padding:3px 8px; }
-
   /* Blocks */
   .bc-btn { padding:4px 8px; font-size:12px; }
   .block-ctrl { top:-36px; gap:4px; }
@@ -334,13 +328,6 @@ img { display: block; }
   /* Edit toolbar */
   #edit-toolbar { bottom:12px; gap:6px; width:calc(100% - 24px); justify-content:center; }
   .toolbar-pill { padding:10px 16px; font-size:12px; }
-
-  /* Admin */
-  #admin-panel { padding:14px; }
-  .admin-table-head { display:none; }
-  .admin-table-row { grid-template-columns:1fr !important; gap:6px; padding:14px !important; }
-  .admin-table-row > div { display:flex; align-items:center; gap:6px; }
-  .admin-actions { flex-wrap:wrap; }
 
   /* Music widget */
   .music-cover { width:38px; height:38px; }
@@ -389,6 +376,7 @@ img { display: block; }
 .chat-messages { flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:6px; }
 .chat-empty    { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--text3); gap:8px; font-size:13px; }
 .chat-empty-icon { font-size:32px; opacity:.4; }
+.chat-date-sep { align-self:center; font-size:10px; color:var(--text3); background:var(--bg3); padding:3px 12px; border-radius:12px; margin:6px 0; font-weight:600; letter-spacing:.3px; }
 .chat-no-sel   { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--text3); gap:10px; font-size:13px; }
 .chat-no-sel-icon { font-size:36px; opacity:.35; }
 .msg-row        { display:flex; gap:8px; align-items:flex-end; max-width:78%; }
@@ -472,6 +460,16 @@ const FB = {
   },
 };
 
+// ── Password hashing (SHA-256, client-side) ──
+// New accounts store a hash, never plaintext. Existing plaintext accounts
+// are transparently upgraded to a hash the next time they log in
+// successfully, so nobody gets locked out.
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function looksHashed(pw) { return typeof pw==='string' && /^[a-f0-9]{64}$/.test(pw); }
+
 // DATABASE — Firebase only
 const DB = {
   async getUser(u)   { try{ return await FB.get('users/'+u); }catch{ return null; } },
@@ -525,8 +523,37 @@ const S = {
   viewingUser: null,
   tab: 'wall',
   editing: false,
-  theme: localStorage.getItem('mw_theme') || 'dark',
+  theme: localStorage.getItem('pp_theme') || 'dark',
 };
+
+// ── Global resource trackers (prevent leaks across re-renders) ──
+let __chatPollTimer = null;
+function stopChatPoll() { clearInterval(__chatPollTimer); __chatPollTimer = null; }
+
+let __outsideClickHandler = null;
+function setOutsideClickHandler(fn) {
+  if (__outsideClickHandler) document.removeEventListener('click', __outsideClickHandler);
+  __outsideClickHandler = fn;
+  if (fn) document.addEventListener('click', fn);
+}
+
+// Escape key: a single global listener dispatches to whatever the current
+// view registered (add-block menu, etc). Installed once — never re-added.
+let __escHandler = null;
+function setEscHandler(fn) { __escHandler = fn; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && __escHandler) __escHandler(e); });
+
+let __wallResizeObservers = [];
+function disconnectWallObservers() {
+  __wallResizeObservers.forEach(ro => ro.disconnect());
+  __wallResizeObservers = [];
+}
+
+let __currentAudio = null;
+function stopCurrentAudio() {
+  if (__currentAudio) { try { __currentAudio.pause(); } catch {} }
+  __currentAudio = null;
+}
 
 document.documentElement.dataset.theme = S.theme;
 
@@ -585,7 +612,7 @@ function notify(msg, type='ok') {
 function toggleTheme() {
   S.theme = S.theme === 'dark' ? 'light' : 'dark';
   document.documentElement.dataset.theme = S.theme;
-  localStorage.setItem('mw_theme', S.theme);
+  localStorage.setItem('pp_theme', S.theme);
   renderNav();
 }
 
@@ -610,6 +637,45 @@ function Avatar(user, size, clickable) {
 
 function deepClone(x) { return JSON.parse(JSON.stringify(x)); }
 
+// ── Universal file picker: opens native dialog, cleans up the hidden input
+// afterwards (even if the user cancels), and enforces a size limit so huge
+// files can't silently blow up a Firebase write. ──
+const MAX_FILE_MB = { image: 5, audio: 10, video: 15 };
+function humanSize(bytes){ return (bytes/1024/1024).toFixed(1)+' МБ'; }
+
+function pickFile(accept, kind, onFile) {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = accept; inp.style.display = 'none';
+  document.body.appendChild(inp);
+  const cleanup = () => { if (inp.parentNode) inp.remove(); };
+  inp.addEventListener('change', () => {
+    const file = inp.files[0];
+    if (!file) { cleanup(); return; }
+    const limitMb = MAX_FILE_MB[kind] || 8;
+    if (file.size > limitMb*1024*1024) {
+      notify('Файл слишком большой ('+humanSize(file.size)+'). Максимум '+limitMb+' МБ.', 'err');
+      cleanup(); return;
+    }
+    onFile(file, cleanup);
+  });
+  // If the user cancels the dialog, no 'change' fires — clean up on next
+  // window focus (the standard cross-browser way to detect a cancel).
+  window.addEventListener('focus', function onFocusBack(){
+    window.removeEventListener('focus', onFocusBack);
+    setTimeout(() => { if (!inp.files.length) cleanup(); }, 400);
+  }, { once:true });
+  inp.click();
+}
+
+function readAsDataURL(file) {
+  return new Promise((resolve,reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
 // 
 // NAV
 // 
@@ -621,7 +687,7 @@ function renderNav() {
 
   nav.appendChild(el('button', {className:'nav-logo', onClick(){
     S.viewingUser = S.currentUser.username; S.tab='wall'; S.editing=false; renderMain();
-  }}, ' PinPage'));
+  }}, 'PinPage'));
   nav.appendChild(el('div', {className:'nav-spacer'}));
 
   for (const [t,lbl] of [['wall','Стена'],['friends','Друзья']]) {
@@ -688,21 +754,27 @@ function renderAuth() {
     return [wrap, inp];
   };
 
-  const [dnWrap, dnInp] = mkField('Имя на сайте', 'text', 'Как тебя звать?');
+  const [dnWrap, dnInp]   = mkField('Имя на сайте', 'text', 'Как тебя звать?'); dnInp.maxLength = 40;
   dnWrap.style.display = 'none';
-  const [, usrInp]  = mkField('Username', 'text', 'только латиница, без пробелов');
-  const [, passInp] = mkField('Пароль', 'password', '••••••••');
+  const [usrWrap, usrInp] = mkField('Username', 'text', 'только латиница, без пробелов'); usrInp.maxLength = 24;
+
+  // Password field gets a show/hide toggle
+  const [passWrap, passInp] = mkField('Пароль', 'password', '••••••••');
+  const passToggle = el('button', {
+    type:'button',
+    style:{position:'absolute',right:'4px',top:'50%',transform:'translateY(-50%)',background:'transparent',border:'none',color:'var(--text3)',fontSize:'11px',fontWeight:'700',padding:'4px 8px',cursor:'pointer'},
+    onClick(e){ e.preventDefault();
+      const show = passInp.type==='password';
+      passInp.type = show?'text':'password';
+      passToggle.textContent = show?'Скрыть':'Показать';
+    }
+  }, 'Показать');
+  passWrap.style.position = 'relative';
+  passInp.style.paddingRight = '68px';
+  passWrap.appendChild(passToggle);
+
   const errDiv = el('div', {className:'auth-err'});
-  fields.appendChild(dnWrap); fields.appendChild(mkField('Username','text','только латиница')[0]); 
-  fields.innerHTML=''; // rebuild properly
-  fields.appendChild(dnWrap);
-  const usrField = el('div',{className:'auth-field'});
-  usrField.appendChild(el('label',{},'Username'));
-  usrField.appendChild(usrInp);
-  const passField = el('div',{className:'auth-field'});
-  passField.appendChild(el('label',{},'Пароль'));
-  passField.appendChild(passInp);
-  fields.appendChild(usrField); fields.appendChild(passField); fields.appendChild(errDiv);
+  fields.appendChild(dnWrap); fields.appendChild(usrWrap); fields.appendChild(passWrap); fields.appendChild(errDiv);
   card.appendChild(fields);
 
   const showErr = msg => { errDiv.style.display='block'; errDiv.textContent=msg; };
@@ -719,8 +791,21 @@ function renderAuth() {
 
     if (mode === 'login') {
       const u = await DB.getUser(usr);
-      if (!u)           { showErr('Пользователь не найден'); sbtn.disabled=false; sbtn.textContent='Войти →'; return; }
-      if (u.password !== pass) { showErr('Неверный пароль');        sbtn.disabled=false; sbtn.textContent='Войти →'; return; }
+      if (!u) { showErr('Пользователь не найден'); sbtn.disabled=false; sbtn.textContent='Войти →'; return; }
+
+      const inputHash = await sha256(pass);
+      let ok, needsMigration = false;
+      if (looksHashed(u.password)) {
+        ok = u.password === inputHash;
+      } else {
+        // Legacy plaintext account — verify directly, then migrate to a hash.
+        ok = u.password === pass;
+        needsMigration = ok;
+      }
+      if (!ok) { showErr('Неверный пароль'); sbtn.disabled=false; sbtn.textContent='Войти →'; return; }
+
+      if (needsMigration) { u.password = inputHash; await DB.setUser(usr, u); }
+
       S.currentUser = u; S.viewingUser = usr; S.tab='wall'; S.editing=false;
       saveSession(u);
       renderAll(); notify('С возвращением, '+u.displayName);
@@ -728,11 +813,13 @@ function renderAuth() {
       const dn = dnInp.value.trim();
       if (!dn || !usr || !pass) { showErr('Заполни все поля'); sbtn.disabled=false; sbtn.textContent='Создать аккаунт →'; return; }
       if (usr.length < 3)       { showErr('Username минимум 3 символа'); sbtn.disabled=false; sbtn.textContent='Создать аккаунт →'; return; }
+      if (pass.length < 4)      { showErr('Пароль минимум 4 символа'); sbtn.disabled=false; sbtn.textContent='Создать аккаунт →'; return; }
       const existing = await DB.getUser(usr);
       if (existing) { showErr('Username занят'); sbtn.disabled=false; sbtn.textContent='Создать аккаунт →'; return; }
       const colors = ['#7c6ff7','#ec4899','#10b981','#3b82f6','#f59e0b','#ef4444'];
       const color = colors[Math.floor(Math.random()*colors.length)];
-      const nu = { username:usr, password:pass, displayName:dn, bio:'', avatar:dn[0].toUpperCase(), color };
+      const passHash = await sha256(pass);
+      const nu = { username:usr, password:passHash, displayName:dn, bio:'', avatar:dn[0].toUpperCase(), color };
       await DB.setUser(usr, nu);
       await DB.setWall(usr, []);
       await DB.setFriends(usr, []);
@@ -745,6 +832,7 @@ function renderAuth() {
 
 
   main.appendChild(screen);
+  requestAnimationFrame(()=>usrInp.focus());
 }
 
 // 
@@ -791,7 +879,6 @@ async function renderFriends() {
   let activeChatUser = null;
   let activeTab = 'friends'; // 'friends' | 'all'
   let searchQ = '';
-  const itemEls = {};
 
   // ── Right column ──
   const chatCol = el('div', {className:'friends-chat-col'});
@@ -819,7 +906,6 @@ async function renderFriends() {
         iinfo.appendChild(el('div', {className:'fl-item-name'}, u.displayName));
         iinfo.appendChild(el('div', {className:'fl-item-sub'}, '@'+u.username+(u.bio?' · '+u.bio:'')));
         item.appendChild(iinfo);
-        itemEls[u.username] = item;
         flScroll.appendChild(item);
       });
 
@@ -883,6 +969,7 @@ async function renderFriends() {
   searchInp.addEventListener('input',  ()=>{ searchQ=searchInp.value.trim(); renderList(); });
 
   renderList();
+  requestAnimationFrame(()=>searchInp.focus());
 
   // ── No selection placeholder ──
   function renderNoSel() {
@@ -897,12 +984,10 @@ async function renderFriends() {
   // ════════════════════════════════════════
   // OPEN CHAT
   // ════════════════════════════════════════
-  let pollTimer = null;
-
   async function openChat(u) {
     activeChatUser = u.username;
     renderList(); // update active state
-    clearInterval(pollTimer);
+    stopChatPoll();
     chatCol.innerHTML = '';
 
     // ── Header ──
@@ -920,6 +1005,7 @@ async function renderFriends() {
         const idx=myFriends.indexOf(u.username);
         if(idx>-1) myFriends.splice(idx,1);
         activeChatUser=null;
+        stopChatPoll();
         notify('Удалён из друзей');
         renderList(); renderNoSel();
       }}, 'Удалить'));
@@ -939,27 +1025,22 @@ async function renderFriends() {
     // ── Input ──
     const inputRow = el('div', {className:'chat-input-row'});
     const inpWrap  = el('div', {className:'chat-inp-wrap'});
-    const inp = el('textarea', {className:'chat-inp', placeholder:'Сообщение...', rows:'1'});
+    const inp = el('textarea', {className:'chat-inp', placeholder:'Сообщение...', rows:'1', maxLength:'2000'});
     inp.addEventListener('input', ()=>{ inp.style.height='auto'; inp.style.height=Math.min(inp.scrollHeight,120)+'px'; });
     inp.addEventListener('keydown', e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();} });
 
-    // Media button + hidden input
+    // Media button
     const mediaBtn = el('button', {className:'chat-media-btn', title:'Фото / Видео'}, '📎');
-    const mediaInp = el('input', {type:'file', accept:'image/*,video/*', style:{display:'none'}});
-    document.body.appendChild(mediaInp);
-    mediaBtn.addEventListener('click', ()=>mediaInp.click());
-    mediaInp.addEventListener('change', async ()=>{
-      const file=mediaInp.files[0]; if(!file) return;
-      const isVideo = file.type.startsWith('video/');
-      sendBtn.disabled=true;
-      const r=new FileReader();
-      r.onload=async ev=>{
-        await DB.sendMessage(me,u.username,{mediaUrl:ev.target.result,mediaType:isVideo?'video':'image'});
+    mediaBtn.addEventListener('click', ()=>{
+      pickFile('image/*,video/*', 'video', async (file,cleanup)=>{
+        const isVideo = file.type.startsWith('video/');
+        sendBtn.disabled=true;
+        const dataUrl = await readAsDataURL(file);
+        await DB.sendMessage(me,u.username,{mediaUrl:dataUrl,mediaType:isVideo?'video':'image'});
         sendBtn.disabled=false;
-        mediaInp.value='';
+        cleanup();
         await loadMessages();
-      };
-      r.readAsDataURL(file);
+      });
     });
 
     inpWrap.appendChild(inp);
@@ -971,10 +1052,12 @@ async function renderFriends() {
 
     // ── Edit state ──
     let editingMsgId = null;
-    cancelEditBtn.addEventListener('click', ()=>{
+    const cancelEdit = ()=>{
       editingMsgId=null; inp.value=''; inp.style.height='auto';
       editBar.classList.remove('visible'); inp.placeholder='Сообщение...';
-    });
+    };
+    cancelEditBtn.addEventListener('click', cancelEdit);
+    inp.addEventListener('keydown', e=>{ if(e.key==='Escape' && editingMsgId) cancelEdit(); });
 
     // ── Load & render messages ──
     async function loadMessages() {
@@ -990,7 +1073,13 @@ async function renderFriends() {
         return;
       }
 
+      let lastDateLabel = null;
       msgs.forEach(msg => {
+        const dateLabel = fmtDateLabel(msg.at);
+        if (dateLabel !== lastDateLabel) {
+          msgsEl.appendChild(el('div', {className:'chat-date-sep'}, dateLabel));
+          lastDateLabel = dateLabel;
+        }
         const mine = msg.from === me;
         const row  = el('div', {className:'msg-row '+(mine?'mine':'theirs')});
         if (!mine) row.appendChild(Avatar(u, 26));
@@ -1066,14 +1155,17 @@ async function renderFriends() {
     }
 
     await loadMessages();
-    pollTimer = setInterval(loadMessages, 4000);
+    __chatPollTimer = setInterval(loadMessages, 4000);
   }
 }
 
 function openImgOverlay(src_) {
-  const ov = el('div', {className:'img-overlay', onClick(){ov.remove();}});
+  const prevEsc = __escHandler;
+  const close = () => { ov.remove(); setEscHandler(prevEsc); };
+  const ov = el('div', {className:'img-overlay', onClick:close});
   ov.appendChild(el('img', {src:src_}));
   document.body.appendChild(ov);
+  setEscHandler(close);
 }
 
 function fmtTime(ts) {
@@ -1083,6 +1175,15 @@ function fmtTime(ts) {
   return d.getDate()+'.'+(d.getMonth()+1)+' '+hh+':'+mm;
 }
 
+function fmtDateLabel(ts) {
+  const d = new Date(ts), now = new Date();
+  const yest = new Date(now); yest.setDate(now.getDate()-1);
+  if (d.toDateString()===now.toDateString())  return 'Сегодня';
+  if (d.toDateString()===yest.toDateString()) return 'Вчера';
+  const months=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  return d.getDate()+' '+months[d.getMonth()]+(d.getFullYear()!==now.getFullYear()?' '+d.getFullYear():'');
+}
+
 // 
 // WALL
 // 
@@ -1090,6 +1191,12 @@ let localBlocks = [];
 let wallGen = 0;
 
 async function renderWall() {
+  // Clean up previous wall's leaked-prone resources before rebuilding
+  disconnectWallObservers();
+  stopCurrentAudio();
+  setOutsideClickHandler(null);
+  setEscHandler(null);
+
   const main = $('main');
   main.innerHTML = '<div id="loading-screen"><div class="loader"></div><p>Загружаем стену...</p></div>';
   main.style.overflow='hidden';
@@ -1117,29 +1224,23 @@ async function renderWall() {
   {
     const avEl = Avatar(viewUser, 44, isPinPage);
     if(isPinPage){
-      const avInput = el('input',{type:'file',accept:'image/*',style:{display:'none'}});
-      document.body.appendChild(avInput);
-      avInput.addEventListener('change',async ()=>{
-        const file=avInput.files[0]; if(!file) return;
-        const reader=new FileReader();
-        reader.onload=async ev=>{
-          const updated={...viewUser, avatarImg: ev.target.result};
-          await DB.setUser(vu, updated);
-          avInput.remove();
-          renderMain();
-          notify('Аватарка обновлена ');
-        };
-        reader.readAsDataURL(file);
-        avInput.value='';
-      });
       // Hover overlay
-      const overlay=el('div',{style:{position:'absolute',inset:'0',borderRadius:'50%',background:'rgba(0,0,0,.45)',display:'flex',alignItems:'center',justifyContent:'center',opacity:'0',transition:'opacity .2s',fontSize:'16px',pointerEvents:'none'}});
-      overlay.textContent='';
+      const overlay=el('div',{style:{position:'absolute',inset:'0',borderRadius:'50%',background:'rgba(0,0,0,.45)',display:'flex',alignItems:'center',justifyContent:'center',opacity:'0',transition:'opacity .2s',fontSize:'13px',color:'#fff',pointerEvents:'none'}});
+      overlay.textContent='Изм.';
       avEl.style.position='relative';
       avEl.appendChild(overlay);
       avEl.addEventListener('mouseenter',()=>overlay.style.opacity='1');
       avEl.addEventListener('mouseleave',()=>overlay.style.opacity='0');
-      avEl.addEventListener('click',()=>avInput.click());
+      avEl.addEventListener('click',()=>{
+        pickFile('image/*','image',async (file,cleanup)=>{
+          const dataUrl = await readAsDataURL(file);
+          const updated={...viewUser, avatarImg: dataUrl};
+          await DB.setUser(vu, updated);
+          cleanup();
+          renderMain();
+          notify('Аватарка обновлена');
+        });
+      });
     }
     bar.appendChild(avEl);
   }
@@ -1168,7 +1269,7 @@ async function renderWall() {
     bar.appendChild(el('button', {
       className:'btn '+(S.editing?'btn-accent':''),
       onClick(){ S.editing=!S.editing; renderMain(); }
-    }, S.editing ? ' Правка вкл' : ' Изменить'));
+    }, S.editing ? 'Режим правки' : 'Изменить'));
   } else {
     const fr = myFriends.includes(vu);
     bar.appendChild(el('button', {
@@ -1177,10 +1278,10 @@ async function renderWall() {
       async onClick() {
         const list = await DB.getFriends(S.currentUser.username);
         if (fr) { await DB.setFriends(S.currentUser.username, list.filter(f=>f!==vu)); notify('Удалён из друзей'); }
-        else    { if(!list.includes(vu)) list.push(vu); await DB.setFriends(S.currentUser.username, list); notify('Добавлен! '); }
+        else    { if(!list.includes(vu)) list.push(vu); await DB.setFriends(S.currentUser.username, list); notify('Добавлен!'); }
         renderMain();
       }
-    }, fr ? ' В друзьях' : '+ Добавить в друзья'));
+    }, fr ? 'В друзьях' : '+ Добавить в друзья'));
   }
   view.appendChild(bar);
 
@@ -1194,6 +1295,8 @@ async function renderWall() {
 
   function renderBlocks() {
     if (wallGen !== gen) return;
+    disconnectWallObservers();
+    stopCurrentAudio();
     layer.innerHTML = '';
     localBlocks.forEach(b => layer.appendChild(makeBlock(b)));
   }
@@ -1269,11 +1372,15 @@ async function renderWall() {
         });
       }
 
-      // ── Play ───────────────────────────────────────────────
+      // ── Play (only one track plays at a time across the whole wall) ──
       const playBtn = el('button', {className:'music-play'}, '▶');
       playBtn.addEventListener('click', e=>{
         e.stopPropagation();
         playing=!playing;
+        if (playing && audio) {
+          stopCurrentAudio();     // pause whatever else was playing
+          __currentAudio = audio;
+        }
         playBtn.classList.toggle('on', playing);
         playBtn.textContent = playing ? '⏸' : '▶';
         if(audio){
@@ -1284,6 +1391,15 @@ async function renderWall() {
           fill.style.transition = playing ? 'width 8s linear' : 'width .3s';
         }
       });
+      if (audio) {
+        // If another track starts playing elsewhere, reflect "paused" here too
+        audio.addEventListener('pause', ()=>{
+          if (__currentAudio !== audio && playing) {
+            playing=false; playBtn.classList.remove('on'); playBtn.textContent='▶';
+            fill.style.width='0%'; fill.style.transition='width .3s';
+          }
+        });
+      }
 
       // ── Cover ──────────────────────────────────────────────
       const coverWrap = el('div', {className:'music-cover'});
@@ -1293,24 +1409,19 @@ async function renderWall() {
         coverWrap.appendChild(el('div', {className:'music-cover-placeholder'}, '♪'));
       }
       if(S.editing && isPinPage){
-        const cInp = el('input', {type:'file', accept:'image/*', style:{display:'none'}});
-        document.body.appendChild(cInp);
-        cInp.addEventListener('change', ()=>{
-          const file=cInp.files[0]; if(!file) return;
-          const r=new FileReader();
-          r.onload=ev=>{
-            const bi=localBlocks.findIndex(b=>b.id===block.id);
-            if(bi>-1) localBlocks[bi].content.coverUrl=ev.target.result;
-            coverWrap.innerHTML='';
-            coverWrap.appendChild(el('img',{src:ev.target.result}));
-            const ov2=el('div',{className:'music-cover-edit-overlay'},'+');
-            ov2.addEventListener('click',e=>{e.stopPropagation();cInp.click();});
-            coverWrap.appendChild(ov2);
-          };
-          r.readAsDataURL(file); cInp.value='';
+        const pickCover = () => pickFile('image/*','image', async (file,cleanup)=>{
+          const dataUrl = await readAsDataURL(file);
+          const bi=localBlocks.findIndex(b=>b.id===block.id);
+          if(bi>-1) localBlocks[bi].content.coverUrl=dataUrl;
+          coverWrap.innerHTML='';
+          coverWrap.appendChild(el('img',{src:dataUrl}));
+          const ov2=el('div',{className:'music-cover-edit-overlay'},'+');
+          ov2.addEventListener('click',e=>{e.stopPropagation();pickCover();});
+          coverWrap.appendChild(ov2);
+          cleanup();
         });
         const coverOverlay=el('div',{className:'music-cover-edit-overlay'},'+');
-        coverOverlay.addEventListener('click',e=>{e.stopPropagation();cInp.click();});
+        coverOverlay.addEventListener('click',e=>{e.stopPropagation();pickCover();});
         coverWrap.appendChild(coverOverlay);
       }
 
@@ -1413,6 +1524,7 @@ async function renderWall() {
       requestAnimationFrame(scaleMusicWidget);
       const ro = new ResizeObserver(scaleMusicWidget);
       ro.observe(inner);
+      __wallResizeObservers.push(ro); // tracked for cleanup on re-render/navigate
     }
 
     //  Edit controls (drag, resize, rotate, z-order, delete)
@@ -1445,7 +1557,19 @@ async function renderWall() {
           if(bi>-1){ localBlocks[bi].rot=0; applyTransform(); }
         }
       }, '⊕');
-      ctrl.appendChild(lUp); ctrl.appendChild(lDn); ctrl.appendChild(rReset); ctrl.appendChild(del);
+      // Duplicate button — clones the block with a small offset
+      const dup = el('button', {className:'bc-btn', title:'Дублировать',
+        onClick(e){ e.stopPropagation();
+          const b=localBlocks.find(b=>b.id===block.id);
+          if(!b) return;
+          const clone = JSON.parse(JSON.stringify(b));
+          clone.id = 'b'+Date.now();
+          clone.x += 24; clone.y += 24;
+          localBlocks.push(clone);
+          renderBlocks();
+        }
+      }, 'Копия');
+      ctrl.appendChild(lUp); ctrl.appendChild(lDn); ctrl.appendChild(rReset); ctrl.appendChild(dup); ctrl.appendChild(del);
       wrap.appendChild(ctrl);
 
       function applyTransform(){
@@ -1530,37 +1654,36 @@ async function renderWall() {
         wrap.appendChild(h);
       });
 
-      // Drag (mouse + touch)
-      let drag=false,sx=0,sy=0,bx=0,by=0;
+      // Drag (mouse + touch) — window listeners are scoped to the active
+      // interaction only (added on start, removed on end), matching the
+      // resize/rotate pattern. Never leaves dangling global listeners.
+      let bx=0,by=0;
       function getXY(e){ return e.touches?{x:e.touches[0].clientX,y:e.touches[0].clientY}:{x:e.clientX,y:e.clientY}; }
       function startDrag(e){
         if(e.target.tagName==='TEXTAREA'||e.target.tagName==='BUTTON'||e.target.classList.contains('resize-handle')||e.target.classList.contains('rot-handle')) return;
-        drag=true; if(e.cancelable) e.preventDefault();
+        if(e.cancelable) e.preventDefault();
         const b=localBlocks.find(b=>b.id===block.id);
         if(b){bx=b.x;by=b.y;}
-        const p=getXY(e); sx=p.x; sy=p.y;
+        const p=getXY(e); const sx=p.x, sy=p.y;
         wrap.style.zIndex=50;
         document.body.style.userSelect='none';
-      }
-      function moveDrag(e){
-        if(!drag) return;
-        const p=getXY(e);
-        const nx=bx+(p.x-sx), ny=by+(p.y-sy);
-        const bi=localBlocks.findIndex(b=>b.id===block.id);
-        if(bi>-1){localBlocks[bi].x=nx;localBlocks[bi].y=ny;}
-        wrap.style.left=nx+'px'; wrap.style.top=ny+'px';
-      }
-      function endDrag(){
-        if(!drag) return;
-        drag=false; wrap.style.zIndex='';
-        document.body.style.userSelect='';
+        const moveDrag=ev=>{
+          const pp=getXY(ev);
+          const nx=bx+(pp.x-sx), ny=by+(pp.y-sy);
+          const bi=localBlocks.findIndex(b=>b.id===block.id);
+          if(bi>-1){localBlocks[bi].x=nx;localBlocks[bi].y=ny;}
+          wrap.style.left=nx+'px'; wrap.style.top=ny+'px';
+        };
+        const endDrag=()=>{
+          wrap.style.zIndex=''; document.body.style.userSelect='';
+          window.removeEventListener('mousemove',moveDrag); window.removeEventListener('mouseup',endDrag);
+          window.removeEventListener('touchmove',moveDrag); window.removeEventListener('touchend',endDrag);
+        };
+        window.addEventListener('mousemove',moveDrag); window.addEventListener('mouseup',endDrag);
+        window.addEventListener('touchmove',moveDrag,{passive:false}); window.addEventListener('touchend',endDrag);
       }
       wrap.addEventListener('mousedown', startDrag);
       wrap.addEventListener('touchstart', startDrag, {passive:false});
-      window.addEventListener('mousemove', moveDrag);
-      window.addEventListener('touchmove', moveDrag, {passive:false});
-      window.addEventListener('mouseup', endDrag);
-      window.addEventListener('touchend', endDrag);
       wrap.style.cursor='grab';
     } else {
       inner.style.boxShadow='0 4px 20px rgba(0,0,0,.3)';
@@ -1580,46 +1703,33 @@ async function renderWall() {
     const toolbar = el('div', {id:'edit-toolbar'});
     const menu = el('div', {className:'add-menu'});
 
-    // Hidden file inputs
-    const imgInput = el('input',{type:'file',accept:'image/*',style:{display:'none'}});
-    const audInput = el('input',{type:'file',accept:'audio/*',style:{display:'none'}});
-    document.body.appendChild(imgInput);
-    document.body.appendChild(audInput);
-
-    imgInput.addEventListener('change', ()=>{
-      const file=imgInput.files[0]; if(!file) return;
-      const reader=new FileReader();
-      reader.onload=e=>{
-        localBlocks.push({id:'b'+Date.now(),type:'image',x:60+Math.random()*150,y:60+Math.random()*150,w:240,h:180,rot:0,content:e.target.result});
-        renderBlocks();
-      };
-      reader.readAsDataURL(file);
-      imgInput.value='';
-    });
-
-    audInput.addEventListener('change', ()=>{
-      const file=audInput.files[0]; if(!file) return;
-      const reader=new FileReader();
-      reader.onload=e=>{
-        const name=file.name.replace(/\.[^.]+$/,'');
-        localBlocks.push({id:'b'+Date.now(),type:'music',x:60+Math.random()*150,y:60+Math.random()*150,w:300,h:90,rot:0,content:{title:name,artist:'',dataUrl:e.target.result}});
-        renderBlocks();
-      };
-      reader.readAsDataURL(file);
-      audInput.value='';
-    });
-
     const addOpt = (lbl, type) => {
       menu.appendChild(el('button', {className:'add-item', onClick(){
         menu.classList.remove('open'); menuOpen=false;
-        if (type==='text')  { localBlocks.push({id:'b'+Date.now(),type:'text',x:60+Math.random()*180,y:60+Math.random()*180,w:260,h:115,rot:0,content:'Твой текст...',style:{fontSize:14,color:'',italic:false}}); renderBlocks(); }
-        if (type==='image') imgInput.click();
-        if (type==='music') audInput.click();
+        if (type==='text') {
+          localBlocks.push({id:'b'+Date.now(),type:'text',x:60+Math.random()*180,y:60+Math.random()*180,w:260,h:115,rot:0,content:'Твой текст...',style:{fontSize:14,color:'',italic:false}});
+          renderBlocks();
+        }
+        if (type==='image') {
+          pickFile('image/*','image', async (file,cleanup)=>{
+            const dataUrl = await readAsDataURL(file);
+            localBlocks.push({id:'b'+Date.now(),type:'image',x:60+Math.random()*150,y:60+Math.random()*150,w:240,h:180,rot:0,content:dataUrl});
+            renderBlocks(); cleanup();
+          });
+        }
+        if (type==='music') {
+          pickFile('audio/*','audio', async (file,cleanup)=>{
+            const dataUrl = await readAsDataURL(file);
+            const name = file.name.replace(/\.[^.]+$/,'');
+            localBlocks.push({id:'b'+Date.now(),type:'music',x:60+Math.random()*150,y:60+Math.random()*150,w:300,h:90,rot:0,content:{title:name,artist:'',dataUrl}});
+            renderBlocks(); cleanup();
+          });
+        }
       }}, lbl));
     };
-    addOpt('  Текст',       'text');
-    addOpt('  Изображение с устройства', 'image');
-    addOpt('  Музыка с устройства',      'music');
+    addOpt('Текст',                       'text');
+    addOpt('Изображение с устройства',    'image');
+    addOpt('Музыка с устройства',         'music');
 
     const addBtn = el('button', {className:'toolbar-pill t-add', onClick(){menuOpen=!menuOpen; menu.classList.toggle('open',menuOpen);}}, '+ Добавить блок');
     const saveBtn = el('button', {
@@ -1629,7 +1739,7 @@ async function renderWall() {
         await DB.setWall(vu, deepClone(localBlocks));
         S.editing=false; S._adminEditingAs=null;
         if(S.currentUser.username==='leha249' && vu!==S.currentUser.username){S.tab='admin';}
-        renderMain(); notify('Стена сохранена ');
+        renderMain(); notify('Стена сохранена');
       }
     }, 'Сохранить');
 
@@ -1638,7 +1748,8 @@ async function renderWall() {
     toolbar.appendChild(aw); toolbar.appendChild(saveBtn);
     canvas.appendChild(toolbar);
 
-    document.addEventListener('click', e=>{ if(!aw.contains(e.target)){menu.classList.remove('open');menuOpen=false;} });
+    setOutsideClickHandler(e=>{ if(!aw.contains(e.target)){menu.classList.remove('open');menuOpen=false;} });
+    setEscHandler(()=>{ menu.classList.remove('open'); menuOpen=false; });
   }
 
   view.appendChild(canvas);
@@ -1673,14 +1784,16 @@ async function renderAdmin() {
   const searchInp = el('input',{type:'text',placeholder:'Поиск по username или имени...',style:{width:'100%',padding:'10px 14px',borderRadius:'9px',border:'1px solid var(--border2)',background:'var(--bg3)',color:'var(--text)',fontSize:'13px',marginBottom:'16px',outline:'none'}});
   wrap.appendChild(searchInp);
 
-  // Table
-  const tableWrap = el('div',{className:'card',style:{overflow:'hidden'}});
+  // Table (horizontally scrollable on narrow screens instead of squishing)
+  const tableScroll = el('div',{style:{overflowX:'auto'}});
+  const tableWrap = el('div',{className:'card',style:{overflow:'hidden',minWidth:'640px'}});
   const tableHead = el('div',{style:{display:'grid',gridTemplateColumns:'2fr 1.5fr 1fr 1fr 2fr',padding:'10px 16px',background:'var(--bg3)',borderBottom:'1px solid var(--border)',fontSize:'10px',fontWeight:'700',color:'var(--text3)',letterSpacing:'.8px',textTransform:'uppercase'}});
   for(const h of ['Пользователь','Имя','Статус','Варны','Действия']) tableHead.appendChild(el('div',{},h));
   tableWrap.appendChild(tableHead);
   const tableBody = el('div');
   tableWrap.appendChild(tableBody);
-  wrap.appendChild(tableWrap);
+  tableScroll.appendChild(tableWrap);
+  wrap.appendChild(tableScroll);
 
   function renderRows(filter=''){
     tableBody.innerHTML='';
@@ -1735,10 +1848,14 @@ async function renderAdmin() {
     const ov=el('div',{style:{position:'fixed',inset:'0',background:'rgba(0,0,0,.7)',zIndex:'9000',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(4px)',animation:'fadeDown .2s ease'}});
     const box=el('div',{className:'card',style:{width:'440px',maxWidth:'95vw',padding:'28px',position:'relative',maxHeight:'85vh',overflowY:'auto'}});
     box.appendChild(el('h3',{style:{fontSize:'17px',fontWeight:'800',marginBottom:'18px',color:'var(--text)'}},title));
-    const closeBtn=el('button',{style:{position:'absolute',top:'14px',right:'16px',background:'transparent',border:'none',color:'var(--text3)',fontSize:'18px'},onClick(){ov.remove();},},'×');
+    const closeModal = () => { ov.remove(); document.removeEventListener('keydown', onEsc); };
+    const onEsc = e => { if (e.key==='Escape') closeModal(); };
+    document.addEventListener('keydown', onEsc);
+    const closeBtn=el('button',{style:{position:'absolute',top:'14px',right:'16px',background:'transparent',border:'none',color:'var(--text3)',fontSize:'18px'},onClick:closeModal},'×');
     box.appendChild(closeBtn);
-    buildFn(box, ()=>ov.remove());
+    buildFn(box, closeModal);
     ov.appendChild(box);
+    ov.addEventListener('click', e=>{ if(e.target===ov) closeModal(); });
     document.body.appendChild(ov);
   }
 
@@ -1749,12 +1866,15 @@ async function renderAdmin() {
       box.appendChild(ri);
       const btns=el('div',{style:{display:'flex',gap:'8px',justifyContent:'flex-end'}});
       btns.appendChild(el('button',{className:'btn',onClick:close},'Отмена'));
-      btns.appendChild(el('button',{className:'btn btn-danger',async onClick(){
+      const confirmBan = async ()=>{
         await DB.setBan(u.username, ri.value||'Нарушение правил');
         allBans[u.username]={reason:ri.value};
         close(); renderRows(searchInp.value); notify('Пользователь @'+u.username+' заблокирован','err');
-      }},'Заблокировать'));
+      };
+      ri.addEventListener('keydown', e=>{ if(e.key==='Enter') confirmBan(); });
+      btns.appendChild(el('button',{className:'btn btn-danger',onClick:confirmBan},'Заблокировать'));
       box.appendChild(btns);
+      requestAnimationFrame(()=>ri.focus());
     });
   }
 
@@ -1793,7 +1913,7 @@ async function renderAdmin() {
       const [,dnI]=mkF('Отображаемое имя',u.displayName);
       const [,avI]=mkF('Аватар (1 символ)',u.avatar);
       const [,clI]=mkF('Цвет (hex)',u.color);
-      const [,biI]=mkF('Bio',u.bio||'');
+      const [,biI]=mkF('Bio',u.bio||''); biI.maxLength=140;
       const [,pwI]=mkF('Новый пароль (оставь пустым)','','password');
       // Avatar image upload
       const avUpload=el('div',{style:{marginBottom:'12px'}});
@@ -1806,11 +1926,15 @@ async function renderAdmin() {
       btns.appendChild(el('button',{className:'btn',onClick:close},'Отмена'));
       btns.appendChild(el('button',{className:'btn btn-accent',async onClick(){
         const updated={...u,displayName:dnI.value.trim()||u.displayName,avatar:avI.value.trim()[0]||u.avatar,color:clI.value.trim()||u.color,bio:biI.value.trim()};
-        if(pwI.value) updated.password=pwI.value;
+        if(pwI.value) updated.password = await sha256(pwI.value);
         // handle avatar image upload
         const avFile=avFileInp.files&&avFileInp.files[0];
         if(avFile){
-          await new Promise(res=>{ const r=new FileReader(); r.onload=ev=>{updated.avatarImg=ev.target.result;res();}; r.readAsDataURL(avFile); });
+          if(avFile.size > MAX_FILE_MB.image*1024*1024){
+            notify('Файл слишком большой. Максимум '+MAX_FILE_MB.image+' МБ.','err');
+          } else {
+            updated.avatarImg = await readAsDataURL(avFile);
+          }
         }
         await DB.setUser(u.username,updated);
         close(); notify('Профиль @'+u.username+' обновлён');
@@ -1889,6 +2013,19 @@ function renderAll() { renderNav(); renderMain(); }
 function renderMain() {
   const main = $('main');
   main.style.transition=''; main.style.opacity='1'; main.style.transform='';
+
+  // Always clean up leak-prone resources from whatever was previously
+  // rendered (chat polling, ResizeObservers, playing audio, tracked
+  // handlers) BEFORE dispatching to the next view — this must be
+  // unconditional (not gated by which tab we're going TO) so that logging
+  // out, closing a chat, etc. always releases everything correctly.
+  // renderWall()/renderFriends() re-acquire whatever they need right after.
+  stopChatPoll();
+  disconnectWallObservers();
+  stopCurrentAudio();
+  setOutsideClickHandler(null);
+  setEscHandler(null);
+
   renderNav();
   if (!S.currentUser)          { renderAuth();   return; }
   if (S.tab==='friends')        { main.style.overflow='hidden'; renderFriends(); return; }
@@ -1896,6 +2033,11 @@ function renderMain() {
   if (S.viewingUser) { renderWall(); return; }
   renderWall();
 }
+
+// Warn before closing/reloading the tab while there are unsaved wall edits
+window.addEventListener('beforeunload', e => {
+  if (S.editing) { e.preventDefault(); e.returnValue = ''; }
+});
 
 // Boot: try to restore session first
 (async () => {
