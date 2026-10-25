@@ -30,9 +30,10 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
-          # Подставляет /<имя-репозитория>/ как базовый путь сайта —
-          # без этого CSS/JS не найдутся на GitHub Pages.
-          BASE_PATH: /${{ github.event.repository.name }}/
+          # Сайт открывается на своём домене (pinpage.lol), то есть из корня — базовый путь «/».
+          # Если откажешься от своего домена и будешь открывать https://<ник>.github.io/<репозиторий>/,
+          # замени на: /${{ github.event.repository.name }}/
+          BASE_PATH: /
 
       - uses: actions/upload-pages-artifact@v3
         with:
