@@ -1,0 +1,11 @@
+node_modules
+dist
+*.local
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+scripts/shots
+scripts/auth-migration-credentials.json
